@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --harbor-white: #f1fafe;
+  --harbor-gray: #d2d9e0;
+  --harbor-black: #141f21;
+  --harbor-blue: #48bff7;
+  --harbor-blue-dark: #1b99d3;
+
+  /* shadcn-vue overrides */
+  --background: 199 80% 97%;        /* #f1fafe */
+  --foreground: 192 25% 10%;        /* #141f21 */
+  --primary: 199 91% 62%;           /* #48bff7 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 199 70% 47%;         /* #1b99d3 */
+  --muted: 207 16% 85%;             /* #d2d9e0 */
+  --muted-foreground: 192 15% 40%;
+  --border: 207 16% 85%;
+  --ring: 199 91% 62%;
+}
+
+body {
+  font-family: 'Quicksand', sans-serif;
+  background-color: var(--harbor-white);
+  color: var(--harbor-black);
+}

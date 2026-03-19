@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx:*)",
+      "Bash(npm install:*)",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(taskkill //F //IM node.exe)"
+    ]
+  }
+}
