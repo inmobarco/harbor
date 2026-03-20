@@ -2,7 +2,6 @@
 // Listado de propiedades desde Wasi API
 definePageMeta({
   layout: 'default',
-  middleware: ['auth'],
 })
 </script>
 

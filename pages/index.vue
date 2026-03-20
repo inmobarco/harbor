@@ -1,8 +1,13 @@
 <script setup lang="ts">
-// Dashboard principal
 definePageMeta({
   layout: 'default',
-  middleware: ['auth'],
+})
+
+const { searchProperties } = useWasi()
+
+onMounted(async () => {
+  const data = await searchProperties()
+  console.log('Propiedades:', data)
 })
 </script>
 

@@ -1,12 +1,23 @@
 export interface User {
-  // TODO: Definir campos desde API propia
-  // id, name, email, role, avatar
+  username: string
+  role: string
+  first_name: string
+  last_name: string
+  phone: string
 }
 
 export interface LoginPayload {
-  // TODO: email, password
+  username: string
+  password: string
 }
 
-export interface AuthState {
-  // TODO: user, token, isAuthenticated
+export interface LoginResponse {
+  status: string
+  access_token: string
+  token_type: string
+  username: string
+  role: string
+  first_name: string
+  last_name: string
+  phone: string
 }

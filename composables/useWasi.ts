@@ -1,7 +1,11 @@
-// composables/useWasi.ts
-// TODO: Implementar fetching de propiedades desde Wasi API
-
 export function useWasi() {
-  // TODO
-  return {}
+  async function searchProperties() {
+    const response = await $fetch('/api/wasi/properties', {
+      method: 'POST',
+      body: { short: true },
+    })
+    return response
+  }
+
+  return { searchProperties }
 }

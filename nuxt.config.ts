@@ -1,4 +1,5 @@
 export default defineNuxtConfig({
+  ssr: false,
   devtools: { enabled: true },
 
   modules: [
@@ -26,6 +27,7 @@ export default defineNuxtConfig({
     public: {
       wasiApiUrl: '',
       wasiApiToken: '',
+      wasiApiId: '',
       apiBaseUrl: '',
       apiToken: '',
       n8nWebhookCreateAppointment: '',

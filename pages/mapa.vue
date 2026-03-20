@@ -2,7 +2,6 @@
 // Mapa de propiedades con Leaflet
 definePageMeta({
   layout: 'default',
-  middleware: ['auth'],
 })
 </script>
 

@@ -1,5 +1,15 @@
 <script setup lang="ts">
-// TODO: Integrar con useAuth para mostrar datos del usuario
+const authStore = useAuthStore()
+
+const displayName = computed(() => {
+  if (!authStore.user) return 'Usuario'
+  return `${authStore.user.first_name} ${authStore.user.last_name}`
+})
+
+const initials = computed(() => {
+  if (!authStore.user) return 'U'
+  return `${authStore.user.first_name[0]}${authStore.user.last_name[0]}`.toUpperCase()
+})
 </script>
 
 <template>
@@ -8,12 +18,11 @@
       <!-- TODO: Breadcrumb o título de sección -->
     </div>
     <div class="flex items-center gap-4">
-      <!-- TODO: Notificaciones, avatar, nombre de usuario -->
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-full bg-harbor-blue flex items-center justify-center text-white text-sm font-bold">
-          U
+          {{ initials }}
         </div>
-        <span class="text-sm font-medium text-harbor-black">Usuario</span>
+        <span class="text-sm font-medium text-harbor-black">{{ displayName }}</span>
       </div>
     </div>
   </header>

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+const authStore = useAuthStore()
+const router = useRouter()
+
 const navItems = [
   { label: 'Dashboard', icon: 'LayoutDashboard', to: '/' },
   { label: 'Propiedades', icon: 'Building2', to: '/propiedades' },
@@ -6,6 +9,11 @@ const navItems = [
   { label: 'Mapa', icon: 'Map', to: '/mapa' },
   { label: 'Asesores', icon: 'Users', to: '/asesores' },
 ]
+
+function logout() {
+  authStore.clearSession()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -28,5 +36,15 @@ const navItems = [
         <span>{{ item.label }}</span>
       </NuxtLink>
     </nav>
+
+    <!-- Cerrar sesión -->
+    <div class="p-4 border-t border-white/10">
+      <button
+        @click="logout"
+        class="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-harbor-gray hover:text-white hover:bg-white/10 transition-colors"
+      >
+        Cerrar sesión
+      </button>
+    </div>
   </aside>
 </template>

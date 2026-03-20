@@ -2,7 +2,6 @@
 // Calendario de citas con FullCalendar
 definePageMeta({
   layout: 'default',
-  middleware: ['auth'],
 })
 </script>
 

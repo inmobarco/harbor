@@ -2,7 +2,6 @@
 // Desempeño de asesores desde API propia
 definePageMeta({
   layout: 'default',
-  middleware: ['auth'],
 })
 </script>
 
