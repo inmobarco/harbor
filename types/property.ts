@@ -1,12 +1,38 @@
 export interface Property {
-  // TODO: Definir campos desde Wasi API
-  // id, title, price, city, zone, type, status, bedrooms, bathrooms, area, images, latitude, longitude
+  id_property: number
+  reference: string | null
+  registration_number: string | null
+  for_sale: boolean | string
+  for_rent: boolean | string
+  sale_price_label: string | null
+  rent_price_label: string | null
+  city_label: string
+  zone_label: string | null
+  bedrooms: number
+  bathrooms: number
+  area: number
+  garages: number
+  tv_share: string | boolean | null
 }
 
 export interface PropertyFilters {
-  // TODO: zona, precio min/max, tipo, estado, habitaciones
+  match?: string
+  id_property?: number
+  min_bedrooms?: number
+  bathrooms?: number
+  garages?: number
+  max_price?: number
+  min_area?: number
+  id_city?: string
+  id_zone?: number
 }
 
-export interface WasiResponse {
-  // TODO: Estructura de respuesta paginada de Wasi API
+export interface WasiZone {
+  id_zone: number
+  name: string
+  id_city: number
+}
+
+export interface WasiPropertySearchResponse {
+  [id: string]: Property
 }

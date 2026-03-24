@@ -31,6 +31,9 @@ export default defineNuxtConfig({
       apiBaseUrl: '',
       apiToken: '',
       n8nWebhookCreateAppointment: '',
+      cardUrl: '',
+      encryptionKey: '',
+      encryptionSalt: '',
       appName: 'Harbor',
       appEnv: 'development',
     }

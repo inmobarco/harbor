@@ -1,13 +1,7 @@
 <script setup lang="ts">
+//inicio
 definePageMeta({
   layout: 'default',
-})
-
-const { searchProperties } = useWasi()
-
-onMounted(async () => {
-  const data = await searchProperties()
-  console.log('Propiedades:', data)
 })
 </script>
 
