@@ -17,7 +17,7 @@ function logout() {
 </script>
 
 <template>
-  <aside class="w-64 bg-harbor-black text-white min-h-screen flex flex-col">
+  <aside class="w-64 bg-harbor-black text-white h-screen flex flex-col fixed top-0 left-0">
     <!-- Logo -->
     <div class="p-6 border-b border-white/10">
       <h1 class="text-xl font-bold text-harbor-blue">Harbor</h1>

@@ -31,6 +31,7 @@ export default defineNuxtConfig({
       apiBaseUrl: '',
       apiToken: '',
       n8nWebhookCreateAppointment: '',
+      n8nWebhookAddRow: '',
       cardUrl: '',
       encryptionKey: '',
       encryptionSalt: '',

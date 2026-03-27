@@ -3,9 +3,9 @@
 </script>
 
 <template>
-  <div class="flex min-h-screen">
+  <div class="min-h-screen">
     <LayoutAppSidebar />
-    <div class="flex-1 flex flex-col">
+    <div class="ml-64 flex-1 flex flex-col">
       <LayoutAppTopbar />
       <main class="flex-1 p-6">
         <slot />
