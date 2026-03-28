@@ -14,6 +14,7 @@ export function useWasi() {
     if (filters.min_area) body.min_area = filters.min_area
     if (filters.id_city) body.id_city = filters.id_city
     if (filters.id_zone) body.id_zone = filters.id_zone
+    if (filters.id_status_on_page !== undefined) body.id_status_on_page = filters.id_status_on_page
 
     return await $fetch<WasiPropertySearchResponse>('/api/wasi/properties', {
       method: 'POST',

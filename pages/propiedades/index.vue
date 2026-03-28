@@ -3,17 +3,23 @@ definePageMeta({
   layout: 'default',
 })
 
+const route = useRoute()
 const store = usePropertiesStore()
 
-onMounted(() => {
-  store.fetchProperties()
-})
+const isInactive = computed(() => route.query.status === 'inactive')
+
+watch(isInactive, (inactive) => {
+  store.setBaseFilters(inactive ? { id_status_on_page: 2 } : {})
+  store.clearFilters()
+}, { immediate: true })
 </script>
 
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold text-harbor-black">Propiedades</h1>
+      <h1 class="text-2xl font-bold text-harbor-black">
+        {{ isInactive ? 'Propiedades inactivas' : 'Propiedades' }}
+      </h1>
       <span v-if="store.total" class="text-sm text-harbor-black/50">
         {{ store.total }} propiedades
       </span>

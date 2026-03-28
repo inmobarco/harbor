@@ -72,84 +72,117 @@ const prices = computed(() => {
 const hasCuartoUtil = computed(() =>
   !!props.property.tv_share && String(props.property.tv_share) !== '0'
 )
+
+const statusTag = computed(() => {
+  const s = Number(props.property.id_status_on_page)
+  if (s === 1) return { label: 'Activo', bg: 'bg-harbor-success/15', text: 'text-harbor-success' }
+  if (s === 2) return { label: 'Inactivo', bg: 'bg-harbor-warning/15', text: 'text-harbor-warning' }
+  if (s === 3) return { label: 'Destacado', bg: 'bg-harbor-purple/15', text: 'text-harbor-purple' }
+  return null
+})
+
+const isInactive = computed(() => Number(props.property.id_status_on_page) === 2)
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-harbor-gray p-5 flex items-start justify-between gap-6">
-    <!-- Info -->
-    <div class="flex-1 min-w-0 space-y-1.5">
-      <!-- Referencia + ID -->
-      <div class="flex items-center gap-3">
-        <span class="font-mono text-base font-bold text-harbor-black">{{ displayRef }}</span>
-        <span class="text-sm text-harbor-black/50">ID: {{ property.id_property }}</span>
+  <div class="bg-white rounded-xl border border-harbor-gray p-5 flex items-start gap-6">
+    <!-- Info: 25% -->
+    <div class="w-1/4 shrink-0 space-y-1.5">
+      <!-- Referencia + ID + Estado -->
+      <div class="flex items-start gap-2 flex-wrap">
+        <span class="font-mono text-base font-bold text-harbor-black break-all">{{ displayRef }}</span>
+        <span class="text-sm text-harbor-black/50 shrink-0">ID: {{ property.id_property }}</span>
+        <span
+          v-if="statusTag"
+          class="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
+          :class="[statusTag.bg, statusTag.text]"
+        >
+          {{ statusTag.label }}
+        </span>
       </div>
 
-      <!-- Precio -->
-      <div class="flex items-center gap-4">
-        <template v-if="prices.length">
-          <div v-for="p in prices" :key="p.label" class="flex items-center gap-2">
-            <span class="text-lg font-bold text-harbor-blue-dark">{{ p.price }}</span>
-            <span class="bg-harbor-blue/10 text-harbor-blue-dark text-xs px-2 py-0.5 rounded-full font-medium">
-              {{ p.label }}
-            </span>
-          </div>
-        </template>
-        <span v-else class="text-sm text-harbor-black/40">Sin precio</span>
-      </div>
+        <!-- Precio -->
+        <div class="flex items-center gap-4">
+          <template v-if="prices.length">
+            <div v-for="p in prices" :key="p.label" class="flex items-center gap-2">
+              <span class="text-lg font-bold text-harbor-blue-dark">{{ p.price }}</span>
+              <span class="bg-harbor-blue/10 text-harbor-blue-dark text-xs px-2 py-0.5 rounded-full font-medium">
+                {{ p.label }}
+              </span>
+            </div>
+          </template>
+          <span v-else class="text-sm text-harbor-black/40">Sin precio</span>
+        </div>
 
-      <!-- Ubicación -->
-      <p class="text-sm text-harbor-black/70">
-        {{ property.city_label }}<template v-if="property.zone_label"> - {{ property.zone_label }}</template>
-      </p>
+        <!-- Ubicación -->
+        <p class="text-sm text-harbor-black/70">
+          {{ property.city_label }}<template v-if="property.zone_label"> - {{ property.zone_label }}</template>
+        </p>
 
-      <!-- Detalles -->
-      <div class="flex items-center gap-3 text-sm text-harbor-black/60 flex-wrap">
-        <span>{{ property.bedrooms }} Hab</span>
-        <span class="text-harbor-gray">|</span>
-        <span>{{ property.bathrooms }} Baños</span>
-        <span class="text-harbor-gray">|</span>
-        <span>{{ property.area }} m²</span>
-        <span class="text-harbor-gray">|</span>
-        <span>{{ property.garages }} Garajes</span>
-        <template v-if="hasCuartoUtil">
+        <!-- Detalles -->
+        <div class="flex items-center gap-3 text-sm text-harbor-black/60 flex-wrap">
+          <span>{{ property.bedrooms }} Hab</span>
           <span class="text-harbor-gray">|</span>
-          <span class="text-harbor-blue-dark font-medium">Cuarto útil</span>
-        </template>
-      </div>
+          <span>{{ property.bathrooms }} Baños</span>
+          <span class="text-harbor-gray">|</span>
+          <span>{{ property.area }} m²</span>
+          <span class="text-harbor-gray">|</span>
+          <span>{{ property.garages }} Garajes</span>
+          <template v-if="hasCuartoUtil">
+            <span class="text-harbor-gray">|</span>
+            <span class="text-harbor-blue-dark font-medium">Cuarto útil</span>
+          </template>
+        </div>
+    </div>
+
+    <!-- Comentario interno: 35% -->
+    <div v-if="property.comment" class="w-[35%] shrink-0 self-stretch flex flex-col justify-center border-l border-harbor-gray/60 pl-5">
+      <p class="text-xs text-harbor-black/40 font-medium mb-1 uppercase tracking-wide">Comentario</p>
+      <p class="text-sm text-harbor-black/70 leading-snug line-clamp-4">{{ property.comment }}</p>
     </div>
 
     <!-- Botones -->
-    <div class="flex flex-col gap-2 shrink-0">
-      <button
-        @click="copyLink"
-        :disabled="!propertyUrl"
-        class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-40 disabled:cursor-not-allowed"
-        :class="copied
-          ? 'bg-green-500 text-white border-green-500'
-          : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
+    <div class="flex flex-col gap-2 shrink-0 ml-auto">
+      <template v-if="!isInactive">
+        <button
+          @click="copyLink"
+          :disabled="!propertyUrl"
+          class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-40 disabled:cursor-not-allowed"
+          :class="copied
+            ? 'bg-harbor-success text-white border-harbor-success'
+            : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
+        >
+          <Link class="w-4 h-4" />
+          {{ copied ? 'Copiado' : 'Copiar enlace' }}
+        </button>
+        <button
+          @click="openCard"
+          :disabled="!propertyUrl"
+          class="flex items-center gap-1.5 text-sm font-semibold text-harbor-blue-dark border border-harbor-blue/30 rounded-lg px-3 py-1.5 transition-colors hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <ExternalLink class="w-4 h-4" />
+          Abrir ficha
+        </button>
+        <button
+          @click="addToExcel"
+          :disabled="addingToExcel"
+          class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-40 disabled:cursor-not-allowed"
+          :class="addedToExcel
+            ? 'bg-harbor-success text-white border-harbor-success'
+            : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
+        >
+          <FileSpreadsheet class="w-4 h-4" />
+          {{ addingToExcel ? 'Enviando...' : addedToExcel ? 'Agregado' : 'Agregar a excel' }}
+        </button>
+      </template>
+      <!-- TODO: Activar propiedad -->
+      <!-- <button
+        v-else
+        class="flex items-center gap-1.5 text-sm font-semibold text-harbor-success border border-harbor-success/30 rounded-lg px-3 py-1.5 transition-colors hover:bg-harbor-success hover:text-white hover:border-harbor-success"
       >
-        <Link class="w-4 h-4" />
-        {{ copied ? 'Copiado' : 'Copiar enlace' }}
-      </button>
-      <button
-        @click="openCard"
-        :disabled="!propertyUrl"
-        class="flex items-center gap-1.5 text-sm font-semibold text-harbor-blue-dark border border-harbor-blue/30 rounded-lg px-3 py-1.5 transition-colors hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        <ExternalLink class="w-4 h-4" />
-        Abrir ficha
-      </button>
-      <button
-        @click="addToExcel"
-        :disabled="addingToExcel"
-        class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-40 disabled:cursor-not-allowed"
-        :class="addedToExcel
-          ? 'bg-green-500 text-white border-green-500'
-          : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
-      >
-        <FileSpreadsheet class="w-4 h-4" />
-        {{ addingToExcel ? 'Enviando...' : addedToExcel ? 'Agregado' : 'Agregar a excel' }}
-      </button>
+        <Power class="w-4 h-4" />
+        Activar propiedad
+      </button> -->
     </div>
   </div>
 </template>

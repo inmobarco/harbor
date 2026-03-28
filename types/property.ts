@@ -13,6 +13,8 @@ export interface Property {
   area: number
   garages: number
   tv_share: string | boolean | null
+  comment: string | null
+  id_status_on_page: number | null
 }
 
 export interface PropertyFilters {
@@ -25,6 +27,7 @@ export interface PropertyFilters {
   min_area?: number
   id_city?: string
   id_zone?: number
+  id_status_on_page?: number
 }
 
 export interface WasiZone {
