@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useAgendaStore } from '~/stores/agenda'
+import { useAuthStore } from '~/stores/auth'
 import type { CreateAppointmentPayload } from '~/types/appointment'
 import type { Advisor } from '~/types/advisor'
 
@@ -95,11 +96,16 @@ export function useAgenda() {
   // Crear cita
   async function createAppointment(payload: CreateAppointmentPayload) {
     const config = useRuntimeConfig()
+    const authStore = useAuthStore()
+
+    const createdBy = authStore.user
+      ? `${authStore.user.first_name} ${authStore.user.last_name}`
+      : ''
 
     // Enviar POST a webhook de n8n
     await $fetch(config.public.n8nWebhookCreateAppointment, {
       method: 'POST',
-      body: payload,
+      body: { ...payload, createdBy },
     })
 
     // Agregar al estado local

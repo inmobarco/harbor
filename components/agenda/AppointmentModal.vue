@@ -27,6 +27,7 @@ const form = reactive({
   clientName: '',
   clientPhone: '',
   type: 'visit' as string,
+  portal: '',
 })
 
 const errors = reactive<Record<string, string>>({})
@@ -65,14 +66,27 @@ function handleSubmit() {
   showConfirmation.value = true
 }
 
+const NOTES_SUFFIX = 'Recuerda por favor llamar al cliente para confirmar y también quedamos pendientes de la retroalimentación para la tabla.'
+
+function formatDateWithTimezone(date: string, time: string): string {
+  return `${date}T${time}:00-05:00`
+}
+
 function handleConfirm() {
   // TODO: Validar que la hora no choque con otra cita existente del mismo asesor
 
+  const notes = [
+    NOTES_SUFFIX,
+    form.portal.trim() ? `Portal: ${form.portal.trim()}` : '',
+  ].filter(Boolean).join('\n')
+
   const payload: CreateAppointmentPayload = {
     advisorId: form.advisorId,
+    advisorName: selectedAdvisorName.value,
     title: form.title.trim(),
     description: form.description.trim() || undefined,
-    date: `${form.date}T${form.time}`,
+    notes,
+    date: formatDateWithTimezone(form.date, form.time),
     duration: Number(form.duration) as AppointmentDuration,
     clientName: form.clientName.trim() || undefined,
     clientPhone: form.clientPhone.trim() || undefined,
@@ -101,6 +115,7 @@ function resetForm() {
   form.clientName = ''
   form.clientPhone = ''
   form.type = 'visit'
+  form.portal = ''
   Object.keys(errors).forEach(k => delete errors[k])
 }
 
@@ -221,6 +236,24 @@ function formatConfirmDateTime(): string {
               rows="2"
             />
             <p v-if="errors.description" class="text-xs text-harbor-error">{{ errors.description }}</p>
+          </div>
+
+          <!-- Portal -->
+          <div class="space-y-1.5">
+            <Label class="text-sm font-semibold text-harbor-black">Portal de origen</Label>
+            <Input
+              v-model="form.portal"
+              placeholder="Ej: Metrocuadrado, FincaRaiz..."
+              maxlength="100"
+            />
+          </div>
+
+          <!-- Nota informativa -->
+          <div class="rounded-lg bg-harbor-blue/10 border border-harbor-blue/20 px-3 py-2">
+            <p class="text-xs text-harbor-black/70 leading-relaxed">
+              <span class="font-semibold">Nota:</span> Se agregara automaticamente a la descripcion:
+              <span class="italic">"Recuerda por favor llamar al cliente para confirmar y tambien quedamos pendientes de la retroalimentacion para la tabla."</span>
+            </p>
           </div>
 
           <!-- Fecha y hora -->
@@ -361,6 +394,10 @@ function formatConfirmDateTime(): string {
           <div v-if="form.clientPhone" class="flex justify-between">
             <span class="text-sm text-harbor-black/60">Telefono</span>
             <span class="text-sm font-semibold text-harbor-black">{{ form.clientPhone }}</span>
+          </div>
+          <div v-if="form.portal" class="flex justify-between">
+            <span class="text-sm text-harbor-black/60">Portal</span>
+            <span class="text-sm font-semibold text-harbor-black">{{ form.portal }}</span>
           </div>
           <div v-if="form.description" class="pt-2 border-t border-harbor-gray">
             <span class="text-sm text-harbor-black/60">Descripcion</span>

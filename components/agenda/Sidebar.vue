@@ -28,8 +28,7 @@ const emit = defineEmits<{
 
     <!-- Boton nueva cita -->
     <Button
-      disabled
-      class="w-full bg-harbor-blue hover:bg-harbor-blue-dark text-white font-semibold disabled:opacity-50"
+      class="w-full bg-harbor-blue hover:bg-harbor-blue-dark text-white font-semibold"
       @click="emit('open-modal')"
     >
       <Plus class="w-4 h-4" />

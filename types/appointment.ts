@@ -34,6 +34,7 @@ export interface AppointmentApiResponse {
 
 export interface CreateAppointmentPayload {
   advisorId: string
+  advisorName?: string
   title: string
   description?: string
   date: string
@@ -41,6 +42,7 @@ export interface CreateAppointmentPayload {
   clientName?: string
   clientPhone?: string
   type: AppointmentType
+  notes?: string
 }
 
 export const appointmentTypeLabels: Record<AppointmentType, string> = {
