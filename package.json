@@ -27,6 +27,7 @@
     "nuxt": "^3.17.0",
     "pinia": "^3.0.4",
     "radix-vue": "^1.9.17",
+    "reka-ui": "^2.9.2",
     "tailwind-merge": "^3.5.0",
     "vue": "latest",
     "vue-router": "latest",

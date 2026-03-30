@@ -1,13 +1,18 @@
 {
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(grep -r \"shadcn\\\\|Dialog\\\\|Button\\\\|Select\\\\|Input\\\\|Checkbox\\\\|Badge\\\\|Card\" d:InmobarcoInmobarco-Proyectosharbor --include=*.ts --include=*.tsx --include=*.vue --include=*.js)",
+      "Read(//d:/Inmobarco/Inmobarco-Proyectos/**)",
+      "Bash(xargs grep:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3000/agenda)"
+    ]
+  },
   "enabledPlugins": {
     "javascript-typescript@claude-code-workflows": true,
     "ui-design@claude-code-workflows": true,
     "frontend-design@claude-plugins-official": true,
     "code-review@claude-plugins-official": true
-  },
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:raw.githubusercontent.com)"
-    ]
   }
 }
