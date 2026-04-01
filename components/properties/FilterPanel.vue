@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-vue-next'
 import type { PropertyFilters, WasiZone } from '~/types/property'
 
 const emit = defineEmits<{
-  search: [filters: PropertyFilters]
+  search: [filters: PropertyFilters, referenceSearch: string]
   clear: []
 }>()
 
@@ -46,7 +46,6 @@ watch(id_city, async (cityId) => {
 
 function handleSearch() {
   const filters: PropertyFilters = {}
-  if (match.value) filters.match = match.value
   if (id_property.value) filters.id_property = id_property.value
   if (min_bedrooms.value) filters.min_bedrooms = min_bedrooms.value
   if (bathrooms.value) filters.bathrooms = bathrooms.value
@@ -55,7 +54,7 @@ function handleSearch() {
   if (min_area.value) filters.min_area = min_area.value
   if (id_city.value) filters.id_city = id_city.value
   if (id_zone.value) filters.id_zone = id_zone.value
-  emit('search', filters)
+  emit('search', filters, match.value.trim())
 }
 
 function handleClear() {

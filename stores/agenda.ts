@@ -54,7 +54,7 @@ export const useAgendaStore = defineStore('agenda', () => {
       advisors.value = data.map((user, index) => ({
         id: String(user.id),
         name: `${user.first_name} ${user.last_name}`,
-        color: ADVISOR_COLORS[index % ADVISOR_COLORS.length],
+        color: user.color || ADVISOR_COLORS[index % ADVISOR_COLORS.length],
       }))
 
       // Hacer visibles todos los asesores al cargar

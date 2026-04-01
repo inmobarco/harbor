@@ -8,6 +8,7 @@ const props = defineProps<{
 
 const { encrypt } = useEncryption()
 const config = useRuntimeConfig()
+const agendaStore = useAgendaStore()
 
 const displayRef = computed(() =>
   props.property.reference || props.property.registration_number || '—'
@@ -82,6 +83,12 @@ const statusTag = computed(() => {
 })
 
 const isInactive = computed(() => Number(props.property.id_status_on_page) === 2)
+
+const labelColor = computed(() => {
+  if (!props.property.label) return null
+  const advisor = agendaStore.advisors.find(a => a.name === props.property.label)
+  return advisor?.color || '#8b5cf6' // fallback purple
+})
 </script>
 
 <template>
@@ -138,8 +145,9 @@ const isInactive = computed(() => Number(props.property.id_status_on_page) === 2
     <!-- Label + Comentario interno: 35% -->
     <div v-if="property.comment || property.label" class="w-[35%] shrink-0 self-stretch flex flex-col justify-center border-l border-harbor-gray/60 pl-5">
       <span
-        v-if="property.label"
-        class="text-xs px-2 py-0.5 rounded-full font-semibold bg-harbor-purple/15 text-harbor-purple w-fit mb-1.5"
+        v-if="property.label && labelColor"
+        class="text-xs px-2 py-0.5 rounded-full font-semibold w-fit mb-1.5"
+        :style="{ backgroundColor: labelColor + '26', color: labelColor }"
       >
         {{ property.label }}
       </span>

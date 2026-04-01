@@ -28,7 +28,7 @@ watch(isInactive, (inactive) => {
     <!-- Filtros -->
     <PropertiesFilterPanel
       class="mb-6"
-      @search="store.applyFilters"
+      @search="(filters, refSearch) => store.applyFilters(filters, refSearch)"
       @clear="store.clearFilters"
     />
 
@@ -37,7 +37,7 @@ watch(isInactive, (inactive) => {
     <template v-else>
       <div class="space-y-4">
         <PropertiesPropertyCard
-          v-for="property in store.properties"
+          v-for="property in store.filteredProperties"
           :key="property.id_property"
           :property="property"
         />

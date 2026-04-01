@@ -12,6 +12,7 @@ export interface AdvisorApiResponse {
   phone: string
   role: string
   is_active: boolean
+  color: string
   created_at: string
 }
 
