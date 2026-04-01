@@ -15,6 +15,7 @@ export interface Property {
   tv_share: string | boolean | null
   comment: string | null
   id_status_on_page: number | null
+  label: string | null
 }
 
 export interface PropertyFilters {

@@ -135,10 +135,18 @@ const isInactive = computed(() => Number(props.property.id_status_on_page) === 2
         </div>
     </div>
 
-    <!-- Comentario interno: 35% -->
-    <div v-if="property.comment" class="w-[35%] shrink-0 self-stretch flex flex-col justify-center border-l border-harbor-gray/60 pl-5">
-      <p class="text-xs text-harbor-black/40 font-medium mb-1 uppercase tracking-wide">Comentario</p>
-      <p class="text-sm text-harbor-black/70 leading-snug line-clamp-4">{{ property.comment }}</p>
+    <!-- Label + Comentario interno: 35% -->
+    <div v-if="property.comment || property.label" class="w-[35%] shrink-0 self-stretch flex flex-col justify-center border-l border-harbor-gray/60 pl-5">
+      <span
+        v-if="property.label"
+        class="text-xs px-2 py-0.5 rounded-full font-semibold bg-harbor-purple/15 text-harbor-purple w-fit mb-1.5"
+      >
+        {{ property.label }}
+      </span>
+      <template v-if="property.comment">
+        <p class="text-xs text-harbor-black/40 font-medium mb-1 uppercase tracking-wide">Comentario</p>
+        <p class="text-sm text-harbor-black/70 leading-snug max-h-20 overflow-y-auto">{{ property.comment }}</p>
+      </template>
     </div>
 
     <!-- Botones -->
