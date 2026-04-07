@@ -22,8 +22,9 @@ export const usePropertiesStore = defineStore('properties', () => {
     if (!referenceSearch.value) return properties.value
     const query = normalize(referenceSearch.value)
     return properties.value.filter(p => {
-      const ref = p.reference || ''
-      return normalize(ref).includes(query)
+      const ref = normalize(p.reference || '')
+      const regNum = normalize(p.registration_number || '')
+      return ref.includes(query) || regNum.includes(query)
     })
   })
 
