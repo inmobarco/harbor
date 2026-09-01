@@ -21,7 +21,7 @@ watch(isInactive, (inactive) => {
         {{ isInactive ? 'Propiedades inactivas' : 'Propiedades' }}
       </h1>
       <span v-if="store.total" class="text-sm text-harbor-black/50">
-        {{ store.total }} propiedades
+        {{ store.loading ? "Actualizando..." : store.total + " propiedades" }}
       </span>
     </div>
 
@@ -32,7 +32,7 @@ watch(isInactive, (inactive) => {
       @clear="store.clearFilters"
     />
 
-    <p v-if="store.loading" class="text-harbor-black/50">Cargando propiedades...</p>
+    <p v-if="store.loading && !store.properties.length" class="text-harbor-black/50">Cargando propiedades...</p>
 
     <template v-else>
       <div class="space-y-4">

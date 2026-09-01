@@ -319,6 +319,10 @@ Los tokens están definidos en `tailwind.config.ts` y como variables CSS en `ass
 - [ ] **Mapa** — integrar `PropertyMap.vue` con Leaflet; mostrar pins de propiedades activas desde Wasi con popup de detalle
 - [ ] **Asesores** — conectar `useAdvisors.ts` y `stores/advisors.ts` con la API; implementar gráficas de desempeño en `PerformanceChart.vue`
 
+### Deuda técnica
+
+- [ ] **Revisitar TanStack Query** — el plugin `plugins/vue-query.ts` está registrado (staleTime 5 min) pero ningún store lo usa todavía. `stores/properties.ts` implementa su propio cache manual (clave de request + TTL + dedup de peticiones en vuelo) para precargar propiedades desde `layouts/default.vue`. Evaluar migrar ese store — y luego `agenda` y `advisors` — a `useQuery`/`prefetchQuery` para tener cache multi-clave, invalidación y refetch en background sin código a mano.
+
 ### v2 — Funcionalidades futuras
 
 - [ ] **CRM Pipeline** — pipeline de oportunidades (requiere mapear Wasi CRM primero)
