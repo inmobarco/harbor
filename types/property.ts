@@ -4,6 +4,8 @@ export interface Property {
   registration_number: string | null
   for_sale: boolean | string
   for_rent: boolean | string
+  sale_price: string | number | null
+  rent_price: string | number | null
   sale_price_label: string | null
   rent_price_label: string | null
   city_label: string

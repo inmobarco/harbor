@@ -20,9 +20,12 @@ watch(isInactive, (inactive) => {
       <h1 class="text-2xl font-bold text-harbor-black">
         {{ isInactive ? 'Propiedades inactivas' : 'Propiedades' }}
       </h1>
-      <span v-if="store.total" class="text-sm text-harbor-black/50">
-        {{ store.loading ? "Actualizando..." : store.total + " propiedades" }}
-      </span>
+      <div class="flex items-center gap-3">
+        <span v-if="store.total" class="text-sm text-harbor-black/50">
+          {{ store.loading ? "Actualizando..." : store.total + " propiedades" }}
+        </span>
+        <PropertiesReportActions v-if="!isInactive" />
+      </div>
     </div>
 
     <!-- Filtros -->

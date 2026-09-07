@@ -54,10 +54,10 @@ export const usePropertiesStore = defineStore('properties', () => {
       const skip = (p - 1) * PAGE_SIZE
       const merged = { ...baseFilters.value, ...filters.value }
       const response = await searchProperties(skip, PAGE_SIZE, merged)
-      const { total: t, status, ...items } = response as any
+      const { items, total: t } = unwrapWasiList(response)
       total.value = t
       page.value = p
-      properties.value = Object.values(items) as Property[]
+      properties.value = items
       lastKey.value = key
       loadedAt.value = Date.now()
     } finally {
