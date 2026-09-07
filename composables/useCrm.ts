@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useCrmStore } from '~/stores/crm'
 import { useAuthStore } from '~/stores/auth'
+import { CRM_OVERVIEW_ROLES } from '~/types/crm'
 
 /** Estilos por estado de cliente de Wasi (1 Nuevo, 2 En Proceso, 3 Convertido, 5 Perdido) */
 const CLIENT_STATUS_STYLES: Record<number, { dot: string; text: string; bg: string }> = {
@@ -35,8 +36,10 @@ export function useCrm() {
   const store = useCrmStore()
   const authStore = useAuthStore()
 
-  // /staff/crm/advisor-map es solo admin
-  const canViewOverview = computed(() => authStore.user?.role === 'admin')
+  const canViewOverview = computed(() => {
+    const role = authStore.user?.role
+    return !!role && CRM_OVERVIEW_ROLES.includes(role)
+  })
 
   return {
     advisors: computed(() => store.advisors),

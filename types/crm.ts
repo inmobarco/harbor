@@ -101,3 +101,10 @@ export interface CrmOverviewResponse {
  * no escanea types/.
  */
 export const CLIENT_STATUS_ORDER = ['Nuevo', 'En Proceso', 'Convertido', 'Perdido']
+
+/**
+ * Roles que ven el resumen de clientes por asesor.
+ * Solo oculta el widget en la UI: quien autoriza de verdad es la API en
+ * GET /staff/crm/advisor-map, que debe aceptar los mismos roles.
+ */
+export const CRM_OVERVIEW_ROLES = ['admin', 'manager']

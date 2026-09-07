@@ -104,6 +104,12 @@ async function fetchAdvisorMap(apiBase: string, authorization: string): Promise<
         statusMessage: 'La API todavia no expone GET /staff/crm/advisor-map',
       })
     }
+    if (status === 403) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Tu rol no tiene permiso para ver el mapa de asesores',
+      })
+    }
     throw createError({
       statusCode: status && status >= 400 && status < 600 ? status : 502,
       statusMessage: err?.data?.detail || 'Error consultando el mapa de asesores',
