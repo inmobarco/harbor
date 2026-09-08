@@ -22,6 +22,33 @@ function displayRef(p: Property): string {
 }
 
 /**
+ * Referencia = prefijo de tipo de inmueble (AP, CS, LC, AE...) + numero de apto + unidad.
+ * Los prefijos mas largos van primero para que la alternacion no corte de menos (APTO antes que AP).
+ */
+const REF_PATTERN = /^(?:(?:APTO|APT|AP|AE|CS|CA|LC|OF|BG|LT|PH)\s*)?(\d+[A-Za-z]?)\s*(.*)$/i
+
+/**
+ * Parte la referencia en numero de apto y nombre de la unidad.
+ *   'AP 1212 Mazzaro'  -> { apto: '1212', unidad: 'Mazzaro' }
+ *   'AP 2202 77 Tower' -> { apto: '2202', unidad: '77 Tower' }  (solo el primer numero)
+ *   'CS 1'             -> { apto: '1',    unidad: '' }
+ * Si no calza el patron no se pierde nada: la referencia entera queda en `unidad`.
+ */
+function splitRef(p: Property): { apto: string; unidad: string } {
+  const raw = displayRef(p).trim().replace(/\s+/g, ' ')
+  const m = REF_PATTERN.exec(raw)
+  if (!m) return { apto: '', unidad: raw }
+  return { apto: m[1], unidad: m[2].trim() }
+}
+
+/** El apto va como numero para que Excel lo ordene bien; si trae letra, como texto. */
+function aptoCell(apto: string) {
+  return /^\d+$/.test(apto)
+    ? { value: Number(apto), type: Number, align: 'center' as const }
+    : { value: apto, type: String, align: 'center' as const }
+}
+
+/**
  * Precio con el que se ordena: el de arriendo si la propiedad se arrienda,
  * si no el de venta.
  */
@@ -60,7 +87,8 @@ function header(title: string) {
 function generalColumns() {
   return [
     { header: header('ID'), width: 11, cell: (p: Property) => ({ value: num(p.id_property), type: Number }) },
-    { header: header('Referencia'), width: 34, cell: (p: Property) => ({ value: displayRef(p), type: String }) },
+    { header: header('Apto'), width: 9, cell: (p: Property) => aptoCell(splitRef(p).apto) },
+    { header: header('Unidad'), width: 30, cell: (p: Property) => ({ value: splitRef(p).unidad, type: String }) },
     { header: header('Venta'), width: 8, cell: (p: Property) => ({ value: yesNo(isTrue(p.for_sale)), type: String, align: 'center' as const }) },
     { header: header('Arriendo'), width: 10, cell: (p: Property) => ({ value: yesNo(isTrue(p.for_rent)), type: String, align: 'center' as const }) },
     { header: header('Precio venta'), width: 17, cell: (p: Property) => ({ value: isTrue(p.for_sale) ? num(p.sale_price) : undefined, type: Number, format: MONEY }) },
@@ -88,7 +116,7 @@ async function toXlsxBlob(properties: Property[]): Promise<Blob> {
 // --- CSV -----------------------------------------------------------------
 
 const CSV_COLUMNS = [
-  'id', 'referencia', 'venta', 'arriendo', 'precio_venta', 'precio_arriendo',
+  'id', 'apto', 'unidad', 'venta', 'arriendo', 'precio_venta', 'precio_arriendo',
   'ciudad', 'barrio', 'habitaciones', 'banos', 'area_m2', 'garajes', 'cuarto_util',
 ]
 
@@ -96,9 +124,12 @@ function toCsvRow(p: Property): (string | number)[] {
   const forSale = isTrue(p.for_sale)
   const forRent = isTrue(p.for_rent)
 
+  const { apto, unidad } = splitRef(p)
+
   return [
     p.id_property,
-    displayRef(p),
+    apto,
+    unidad,
     yesNo(forSale),
     yesNo(forRent),
     forSale ? (p.sale_price_label || '') : '',
