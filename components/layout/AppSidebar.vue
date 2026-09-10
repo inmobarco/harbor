@@ -1,18 +1,33 @@
 <script setup lang="ts">
+import { ROUTE_MANAGE_ROLES } from '~/types/route'
+
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const navItems = [
+interface NavItem {
+  label: string
+  icon: string | null
+  to: string
+  sub?: boolean
+  roles?: readonly string[]
+}
+
+const allNavItems: NavItem[] = [
   { label: 'Dashboard', icon: 'LayoutDashboard', to: '/' },
   { label: 'Propiedades', icon: 'Building2', to: '/propiedades' },
   { label: 'Inactivas', icon: null, to: '/propiedades?status=inactive', sub: true },
   { label: 'Agenda', icon: 'Calendar', to: '/agenda' },
   { label: 'Mapa', icon: 'Map', to: '/mapa' },
+  { label: 'Rutero', icon: 'Route', to: '/rutero', roles: ROUTE_MANAGE_ROLES },
   { label: 'Asesores', icon: 'Users', to: '/asesores' },
 ]
 
-function isActive(item: typeof navItems[number]) {
+const navItems = computed(() =>
+  allNavItems.filter(item => !item.roles || item.roles.includes(authStore.user?.role ?? ''))
+)
+
+function isActive(item: NavItem) {
   if (item.to === '/propiedades') return route.path === '/propiedades' && !route.query.status
   if (item.to.includes('?status=inactive')) return route.path === '/propiedades' && route.query.status === 'inactive'
   return route.path === item.to
