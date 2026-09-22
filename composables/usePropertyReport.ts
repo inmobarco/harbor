@@ -1,5 +1,7 @@
 import type { Property } from '~/types/property'
 
+// --- Lectura de campos ---------------------------------------------------
+
 /** Wasi con short=true devuelve booleanos, precios y medidas como string. */
 function isTrue(value: boolean | string | null): boolean {
   return String(value) === 'true'
@@ -19,6 +21,10 @@ function hasCuartoUtil(p: Property): boolean {
 
 function displayRef(p: Property): string {
   return p.reference || p.registration_number || ''
+}
+
+function cityOf(p: Property): string {
+  return p.city_label || ''
 }
 
 /**
@@ -48,21 +54,173 @@ function aptoCell(apto: string) {
     : { value: apto, type: String, align: 'center' as const }
 }
 
-/**
- * Precio con el que se ordena: el de arriendo si la propiedad se arrienda,
- * si no el de venta.
- */
+/** Precio vigente: el de arriendo si la propiedad se arrienda, si no el de venta. */
 function priceOf(p: Property): number {
   return num(isTrue(p.for_rent) ? p.rent_price : p.sale_price)
 }
 
-/** Municipio alfabetico, y dentro de cada municipio precio de menor a mayor. */
-function sortForReport(properties: Property[]): Property[] {
+/** Mismo criterio que priceOf, pero con la etiqueta ya formateada por Wasi. */
+function priceLabelOf(p: Property): string {
+  return (isTrue(p.for_rent) ? p.rent_price_label : p.sale_price_label) || ''
+}
+
+// --- Ordenamientos -------------------------------------------------------
+
+/** Informe general: municipio alfabetico, y dentro de cada uno precio de menor a mayor. */
+function sortByCityName(properties: Property[]): Property[] {
   return [...properties].sort((a, b) => {
-    const byCity = (a.city_label || '').localeCompare(b.city_label || '', 'es')
+    const byCity = cityOf(a).localeCompare(cityOf(b), 'es')
     if (byCity !== 0) return byCity
     return priceOf(a) - priceOf(b)
   })
+}
+
+/**
+ * Informe detallado: primero el municipio donde hay mas propiedades y de ahi hacia
+ * abajo; dentro de cada municipio, precio de menor a mayor.
+ * El orden se recalcula en cada descarga, no es una lista fija de municipios.
+ */
+function sortByCityVolume(properties: Property[]): Property[] {
+  const count = new Map<string, number>()
+  for (const p of properties) count.set(cityOf(p), (count.get(cityOf(p)) || 0) + 1)
+
+  return [...properties].sort((a, b) => {
+    const ca = cityOf(a)
+    const cb = cityOf(b)
+    if (ca !== cb) {
+      const byVolume = (count.get(cb) || 0) - (count.get(ca) || 0)
+      // Empate de volumen: alfabetico, para que el orden sea estable entre descargas
+      return byVolume !== 0 ? byVolume : ca.localeCompare(cb, 'es')
+    }
+    return priceOf(a) - priceOf(b)
+  })
+}
+
+// --- Columnas ------------------------------------------------------------
+
+const MONEY = '"$"#,##0'
+const CENTER = { align: 'center' as const }
+
+interface ReportColumn {
+  /** Encabezado en el .xlsx */
+  title: string
+  /** Encabezado en el .csv */
+  csvTitle: string
+  /** Ancho de columna, en caracteres */
+  width: number
+  cell: (p: Property) => Record<string, unknown>
+  csvCell: (p: Property) => string | number
+}
+
+/** Una entrada por campo; cada informe elige cuales usa y en que orden. */
+const COL = {
+  municipio: {
+    title: 'Municipio', csvTitle: 'municipio', width: 16,
+    cell: p => ({ value: cityOf(p), type: String }),
+    csvCell: p => cityOf(p),
+  },
+  id: {
+    title: 'ID', csvTitle: 'id', width: 11,
+    cell: p => ({ value: num(p.id_property), type: Number }),
+    csvCell: p => p.id_property,
+  },
+  apto: {
+    title: 'Apto', csvTitle: 'apto', width: 9,
+    cell: p => aptoCell(splitRef(p).apto),
+    csvCell: p => splitRef(p).apto,
+  },
+  unidad: {
+    title: 'Unidad', csvTitle: 'unidad', width: 30,
+    cell: p => ({ value: splitRef(p).unidad, type: String }),
+    csvCell: p => splitRef(p).unidad,
+  },
+  venta: {
+    title: 'Venta', csvTitle: 'venta', width: 8,
+    cell: p => ({ value: yesNo(isTrue(p.for_sale)), type: String, ...CENTER }),
+    csvCell: p => yesNo(isTrue(p.for_sale)),
+  },
+  arriendo: {
+    title: 'Arriendo', csvTitle: 'arriendo', width: 10,
+    cell: p => ({ value: yesNo(isTrue(p.for_rent)), type: String, ...CENTER }),
+    csvCell: p => yesNo(isTrue(p.for_rent)),
+  },
+  precioVenta: {
+    title: 'Precio venta', csvTitle: 'precio_venta', width: 17,
+    cell: p => ({ value: isTrue(p.for_sale) ? num(p.sale_price) : undefined, type: Number, format: MONEY }),
+    csvCell: p => (isTrue(p.for_sale) ? p.sale_price_label || '' : ''),
+  },
+  precioArriendo: {
+    title: 'Precio arriendo', csvTitle: 'precio_arriendo', width: 17,
+    cell: p => ({ value: isTrue(p.for_rent) ? num(p.rent_price) : undefined, type: Number, format: MONEY }),
+    csvCell: p => (isTrue(p.for_rent) ? p.rent_price_label || '' : ''),
+  },
+  /** Columna unica: el de arriendo si la propiedad se arrienda, si no el de venta. */
+  precio: {
+    title: 'Precio', csvTitle: 'precio', width: 17,
+    cell: p => ({ value: priceOf(p) || undefined, type: Number, format: MONEY }),
+    csvCell: p => priceLabelOf(p),
+  },
+  barrio: {
+    title: 'Barrio', csvTitle: 'barrio', width: 22,
+    cell: p => ({ value: p.zone_label || '', type: String }),
+    csvCell: p => p.zone_label || '',
+  },
+  habitaciones: {
+    title: 'Habitaciones', csvTitle: 'habitaciones', width: 13,
+    cell: p => ({ value: num(p.bedrooms), type: Number, ...CENTER }),
+    csvCell: p => p.bedrooms,
+  },
+  banos: {
+    title: 'Baños', csvTitle: 'banos', width: 9,
+    cell: p => ({ value: num(p.bathrooms), type: Number, ...CENTER }),
+    csvCell: p => p.bathrooms,
+  },
+  area: {
+    title: 'Área (m²)', csvTitle: 'area_m2', width: 11,
+    cell: p => ({ value: num(p.area), type: Number, ...CENTER }),
+    csvCell: p => p.area,
+  },
+  garajes: {
+    title: 'Garajes', csvTitle: 'garajes', width: 9,
+    cell: p => ({ value: num(p.garages), type: Number, ...CENTER }),
+    csvCell: p => p.garages,
+  },
+  cuartoUtil: {
+    title: 'Cuarto útil', csvTitle: 'cuarto_util', width: 12,
+    cell: p => ({ value: yesNo(hasCuartoUtil(p)), type: String, ...CENTER }),
+    csvCell: p => yesNo(hasCuartoUtil(p)),
+  },
+} satisfies Record<string, ReportColumn>
+
+export type ReportKind = 'general' | 'detailed'
+export type ReportFormat = 'xlsx' | 'csv'
+
+interface ReportSpec {
+  /** Va en el nombre del archivo */
+  slug: string
+  columns: ReportColumn[]
+  sort: (properties: Property[]) => Property[]
+}
+
+const REPORTS: Record<ReportKind, ReportSpec> = {
+  general: {
+    slug: 'general',
+    columns: [
+      COL.id, COL.apto, COL.unidad,
+      COL.venta, COL.arriendo, COL.precioVenta, COL.precioArriendo,
+      COL.municipio, COL.barrio,
+      COL.habitaciones, COL.banos, COL.area, COL.garajes, COL.cuartoUtil,
+    ],
+    sort: sortByCityName,
+  },
+  detailed: {
+    slug: 'detallado',
+    columns: [
+      COL.municipio, COL.id, COL.apto, COL.unidad, COL.precio, COL.barrio,
+      COL.habitaciones, COL.banos, COL.area, COL.garajes, COL.cuartoUtil,
+    ],
+    sort: sortByCityVolume,
+  },
 }
 
 // --- Excel ---------------------------------------------------------------
@@ -77,72 +235,22 @@ const HEADER_STYLE = {
   height: 28,
 } as const
 
-const MONEY = '"$"#,##0'
-
-function header(title: string) {
-  return { value: title, ...HEADER_STYLE }
-}
-
-/** Columnas del informe general, en el orden en que salen en la hoja. */
-function generalColumns() {
-  return [
-    { header: header('ID'), width: 11, cell: (p: Property) => ({ value: num(p.id_property), type: Number }) },
-    { header: header('Apto'), width: 9, cell: (p: Property) => aptoCell(splitRef(p).apto) },
-    { header: header('Unidad'), width: 30, cell: (p: Property) => ({ value: splitRef(p).unidad, type: String }) },
-    { header: header('Venta'), width: 8, cell: (p: Property) => ({ value: yesNo(isTrue(p.for_sale)), type: String, align: 'center' as const }) },
-    { header: header('Arriendo'), width: 10, cell: (p: Property) => ({ value: yesNo(isTrue(p.for_rent)), type: String, align: 'center' as const }) },
-    { header: header('Precio venta'), width: 17, cell: (p: Property) => ({ value: isTrue(p.for_sale) ? num(p.sale_price) : undefined, type: Number, format: MONEY }) },
-    { header: header('Precio arriendo'), width: 17, cell: (p: Property) => ({ value: isTrue(p.for_rent) ? num(p.rent_price) : undefined, type: Number, format: MONEY }) },
-    { header: header('Municipio'), width: 16, cell: (p: Property) => ({ value: p.city_label || '', type: String }) },
-    { header: header('Barrio'), width: 22, cell: (p: Property) => ({ value: p.zone_label || '', type: String }) },
-    { header: header('Habitaciones'), width: 13, cell: (p: Property) => ({ value: num(p.bedrooms), type: Number, align: 'center' as const }) },
-    { header: header('Baños'), width: 9, cell: (p: Property) => ({ value: num(p.bathrooms), type: Number, align: 'center' as const }) },
-    { header: header('Área (m²)'), width: 11, cell: (p: Property) => ({ value: num(p.area), type: Number, align: 'center' as const }) },
-    { header: header('Garajes'), width: 9, cell: (p: Property) => ({ value: num(p.garages), type: Number, align: 'center' as const }) },
-    { header: header('Cuarto útil'), width: 12, cell: (p: Property) => ({ value: yesNo(hasCuartoUtil(p)), type: String, align: 'center' as const }) },
-  ]
-}
-
-async function toXlsxBlob(properties: Property[]): Promise<Blob> {
+async function toXlsxBlob(spec: ReportSpec, properties: Property[]): Promise<Blob> {
   // Import dinamico: la libreria solo entra al bundle cuando se pide el informe.
   const { default: writeXlsxFile } = await import('write-excel-file/browser')
-  return await writeXlsxFile(sortForReport(properties), {
-    columns: generalColumns(),
+  const columns = spec.columns.map(c => ({
+    header: { value: c.title, ...HEADER_STYLE },
+    width: c.width,
+    cell: c.cell,
+  }))
+  return await writeXlsxFile(spec.sort(properties), {
+    columns,
     sheet: 'Propiedades',
     stickyRowsCount: 1,
   } as any).toBlob()
 }
 
 // --- CSV -----------------------------------------------------------------
-
-const CSV_COLUMNS = [
-  'id', 'apto', 'unidad', 'venta', 'arriendo', 'precio_venta', 'precio_arriendo',
-  'ciudad', 'barrio', 'habitaciones', 'banos', 'area_m2', 'garajes', 'cuarto_util',
-]
-
-function toCsvRow(p: Property): (string | number)[] {
-  const forSale = isTrue(p.for_sale)
-  const forRent = isTrue(p.for_rent)
-
-  const { apto, unidad } = splitRef(p)
-
-  return [
-    p.id_property,
-    apto,
-    unidad,
-    yesNo(forSale),
-    yesNo(forRent),
-    forSale ? (p.sale_price_label || '') : '',
-    forRent ? (p.rent_price_label || '') : '',
-    p.city_label || '',
-    p.zone_label || '',
-    p.bedrooms,
-    p.bathrooms,
-    p.area,
-    p.garages,
-    yesNo(hasCuartoUtil(p)),
-  ]
-}
 
 /** Entrecomilla solo si hace falta, para que Excel siga leyendo los numeros como numeros. */
 function escapeCell(value: string | number): string {
@@ -151,11 +259,13 @@ function escapeCell(value: string | number): string {
   return text
 }
 
-function toCsvBlob(properties: Property[]): Blob {
-  const lines = [CSV_COLUMNS, ...sortForReport(properties).map(toCsvRow)]
-    .map(row => row.map(escapeCell).join(';'))
+function toCsvBlob(spec: ReportSpec, properties: Property[]): Blob {
+  const rows = [
+    spec.columns.map(c => c.csvTitle),
+    ...spec.sort(properties).map(p => spec.columns.map(c => c.csvCell(p))),
+  ]
   // BOM para que Excel respete los acentos
-  const csv = '\uFEFF' + lines.join('\r\n')
+  const csv = '\uFEFF' + rows.map(row => row.map(escapeCell).join(';')).join('\r\n')
   return new Blob([csv], { type: 'text/csv;charset=utf-8;' })
 }
 
@@ -176,18 +286,20 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export type ReportFormat = 'xlsx' | 'csv'
-
 export function usePropertyReport() {
   const loading = ref(false)
+  /** Cual de los dos informes se pidio de ultimas, para ubicar el estado en su boton. */
+  const running = ref<ReportKind | null>(null)
   const progress = ref({ loaded: 0, total: 0 })
   const error = ref(false)
 
   /** Informe de todas las propiedades activas, sin importar los filtros en pantalla. */
-  async function downloadGeneralReport(format: ReportFormat = 'xlsx') {
+  async function downloadReport(kind: ReportKind, format: ReportFormat = 'xlsx') {
     if (loading.value) return
 
+    const spec = REPORTS[kind]
     loading.value = true
+    running.value = kind
     error.value = false
     progress.value = { loaded: 0, total: 0 }
 
@@ -197,15 +309,15 @@ export function usePropertyReport() {
         { id_status_on_page: 1 },
         { pageSize: 50, onProgress: p => { progress.value = p } }
       )
-      const blob = format === 'csv' ? toCsvBlob(properties) : await toXlsxBlob(properties)
-      downloadBlob(`informe-general-propiedades-${today()}.${format}`, blob)
+      const blob = format === 'csv' ? toCsvBlob(spec, properties) : await toXlsxBlob(spec, properties)
+      downloadBlob(`informe-${spec.slug}-propiedades-${today()}.${format}`, blob)
     } catch (e) {
-      console.error('Error al generar el informe general:', e)
+      console.error(`Error al generar el informe ${spec.slug}:`, e)
       error.value = true
     } finally {
       loading.value = false
     }
   }
 
-  return { loading, progress, error, downloadGeneralReport }
+  return { loading, running, progress, error, downloadReport }
 }
