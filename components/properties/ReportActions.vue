@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileSpreadsheet, FileText } from 'lucide-vue-next'
+import { FileSpreadsheet, FileText, Contact } from 'lucide-vue-next'
 import type { ReportKind } from '~/composables/usePropertyReport'
 
 const { loading, running, progress, error, downloadReport } = usePropertyReport()
@@ -45,6 +45,19 @@ const isFailed = (kind: ReportKind) => running.value === kind && !loading.value 
     >
       <FileText class="w-4 h-4" />
       {{ labelFor('detailed', 'Descargar informe detallado') }}
+    </button>
+
+    <button
+      @click="downloadReport('contacts')"
+      :disabled="loading"
+      title="Excel con el nombre y celular del propietario de cada propiedad activa"
+      class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-60 disabled:cursor-wait"
+      :class="isFailed('contacts')
+        ? 'text-harbor-warning border-harbor-warning/40 hover:bg-harbor-warning hover:text-white'
+        : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
+    >
+      <Contact class="w-4 h-4" />
+      {{ labelFor('contacts', 'Descargar contactos de propietarios') }}
     </button>
   </div>
 </template>

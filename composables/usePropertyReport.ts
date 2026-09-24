@@ -64,6 +64,28 @@ function priceLabelOf(p: Property): string {
   return (isTrue(p.for_rent) ? p.rent_price_label : p.sale_price_label) || ''
 }
 
+/**
+ * El nombre y el celular del propietario no vienen como campo: estan dentro del
+ * comentario interno, en una linea con el formato `Propietario: <nombre>, <celular>`.
+ *
+ * El ancla al inicio de linea es a proposito. Hay comentarios que mencionan la
+ * palabra en texto libre ("el propietario Porta las llaves") o en otro campo de la
+ * plantilla ("Llaves: CITA CON LA PROPIETARIO"), y buscar la palabra suelta traeria
+ * esa linea en vez del dato real.
+ */
+const OWNER_LINE = /^[ \t]*propietario[ \t]*:[ \t]*(.*)$/im
+
+function ownerOf(p: Property): { nombre: string; celular: string } {
+  const m = OWNER_LINE.exec(p.comment || '')
+  if (!m) return { nombre: '', celular: '' }
+
+  const rest = m[1].trim()
+  // El celular va despues de la ultima coma; los nombres no traen comas.
+  const cut = rest.lastIndexOf(',')
+  if (cut < 0) return { nombre: rest, celular: '' }
+  return { nombre: rest.slice(0, cut).trim(), celular: rest.slice(cut + 1).trim() }
+}
+
 // --- Ordenamientos -------------------------------------------------------
 
 /** Informe general: municipio alfabetico, y dentro de cada uno precio de menor a mayor. */
@@ -165,6 +187,18 @@ const COL = {
     cell: p => ({ value: p.zone_label || '', type: String }),
     csvCell: p => p.zone_label || '',
   },
+  propietario: {
+    title: 'Propietario', csvTitle: 'propietario', width: 24,
+    cell: p => ({ value: ownerOf(p).nombre, type: String }),
+    csvCell: p => ownerOf(p).nombre,
+  },
+  celular: {
+    // Como texto a proposito: los celulares con indicativo llegan a 13 digitos y
+    // Excel los mostraria en notacion cientifica si los tomara como numero.
+    title: 'Celular propietario', csvTitle: 'celular_propietario', width: 20,
+    cell: p => ({ value: ownerOf(p).celular, type: String }),
+    csvCell: p => ownerOf(p).celular,
+  },
   habitaciones: {
     title: 'Habitaciones', csvTitle: 'habitaciones', width: 13,
     cell: p => ({ value: num(p.bedrooms), type: Number, ...CENTER }),
@@ -192,11 +226,11 @@ const COL = {
   },
 } satisfies Record<string, ReportColumn>
 
-export type ReportKind = 'general' | 'detailed'
+export type ReportKind = 'general' | 'detailed' | 'contacts'
 export type ReportFormat = 'xlsx' | 'csv'
 
 interface ReportSpec {
-  /** Va en el nombre del archivo */
+  /** Va en el nombre del archivo: informe-<slug>-<fecha>.<formato> */
   slug: string
   columns: ReportColumn[]
   sort: (properties: Property[]) => Property[]
@@ -204,7 +238,7 @@ interface ReportSpec {
 
 const REPORTS: Record<ReportKind, ReportSpec> = {
   general: {
-    slug: 'general',
+    slug: 'general-propiedades',
     columns: [
       COL.id, COL.apto, COL.unidad,
       COL.venta, COL.arriendo, COL.precioVenta, COL.precioArriendo,
@@ -214,12 +248,20 @@ const REPORTS: Record<ReportKind, ReportSpec> = {
     sort: sortByCityName,
   },
   detailed: {
-    slug: 'detallado',
+    slug: 'detallado-propiedades',
     columns: [
       COL.municipio, COL.id, COL.apto, COL.unidad, COL.precio, COL.barrio,
       COL.habitaciones, COL.banos, COL.area, COL.garajes, COL.cuartoUtil,
     ],
     sort: sortByCityVolume,
+  },
+  contacts: {
+    slug: 'contactos-propietarios',
+    columns: [
+      COL.id, COL.apto, COL.unidad, COL.precio, COL.municipio, COL.barrio,
+      COL.propietario, COL.celular,
+    ],
+    sort: sortByCityName,
   },
 }
 
@@ -310,7 +352,7 @@ export function usePropertyReport() {
         { pageSize: 50, onProgress: p => { progress.value = p } }
       )
       const blob = format === 'csv' ? toCsvBlob(spec, properties) : await toXlsxBlob(spec, properties)
-      downloadBlob(`informe-${spec.slug}-propiedades-${today()}.${format}`, blob)
+      downloadBlob(`informe-${spec.slug}-${today()}.${format}`, blob)
     } catch (e) {
       console.error(`Error al generar el informe ${spec.slug}:`, e)
       error.value = true
