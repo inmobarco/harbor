@@ -51,7 +51,7 @@ function entryAuthLabel(value: string | boolean | null): string | null {
 }
 
 function location(r: MaintenanceRequest): string {
-  return [r.tower && `Torre ${r.tower}`, r.unit && `Unidad ${r.unit}`].filter(Boolean).join(' · ')
+  return [r.aptNum && `Apto ${r.aptNum}`, r.unit].filter(Boolean).join(' · ')
 }
 </script>
 

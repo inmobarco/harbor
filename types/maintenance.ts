@@ -49,8 +49,9 @@ export interface MaintenanceRequest {
   contractNumber: string | null
   contractVerified: boolean
   propertyAddress: string | null
-  tower: string | null
+  /** Nombre de la unidad / conjunto residencial. */
   unit: string | null
+  aptNum: string | null
   categoryCode: string
   categoryLabel: string
   subcategoryCode: string | null
