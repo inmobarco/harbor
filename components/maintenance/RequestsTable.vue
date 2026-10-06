@@ -9,6 +9,8 @@ defineProps<{
   error?: string | null
 }>()
 
+const emit = defineEmits<{ attachments: [request: MaintenanceRequest] }>()
+
 const STATUS_CLASSES: Record<string, string> = {
   recibida: 'bg-harbor-info/10 text-harbor-info',
   en_revision: 'bg-harbor-purple/10 text-harbor-purple',
@@ -104,13 +106,15 @@ function location(r: MaintenanceRequest): string {
                   >
                     <Flame class="h-3.5 w-3.5" /> Ahora
                   </span>
-                  <span
+                  <button
                     v-if="r.attachmentCount"
-                    class="inline-flex items-center gap-1 text-xs text-harbor-black/60"
-                    :title="`${r.attachmentCount} adjunto(s)`"
+                    type="button"
+                    class="inline-flex items-center gap-1 text-xs font-semibold text-harbor-blue-dark hover:underline"
+                    @click="emit('attachments', r)"
                   >
-                    <Paperclip class="h-3.5 w-3.5" /> {{ r.attachmentCount }}
-                  </span>
+                    <Paperclip class="h-3.5 w-3.5" />
+                    Ver adjuntos ({{ r.attachmentCount }})
+                  </button>
                 </div>
               </td>
   

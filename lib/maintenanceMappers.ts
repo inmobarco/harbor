@@ -1,4 +1,4 @@
-import type { MaintenanceFilters, MaintenanceRequest } from '~/types/maintenance'
+import type { MaintenanceAttachment, MaintenanceFilters, MaintenanceRequest } from '~/types/maintenance'
 
 /**
  * Mapeo de /staff/maintenance/requests a los tipos de la app. Aislado del
@@ -45,6 +45,23 @@ export function normalizeMaintenanceRequest(raw: any): MaintenanceRequest {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     isActive: raw.is_active !== false,
+  }
+}
+
+export function normalizeMaintenanceAttachment(raw: any): MaintenanceAttachment {
+  return {
+    id: Number(raw.id),
+    requestId: Number(raw.request_id),
+    phase: String(raw.phase ?? ''),
+    position: Number(raw.position ?? 0),
+    originalName: str(raw.original_name),
+    contentType: str(raw.content_type),
+    sizeBytes: raw.size_bytes != null ? Number(raw.size_bytes) : null,
+    storageStatus: str(raw.storage_status),
+    createdAt: raw.created_at,
+    url: raw.url,
+    downloadUrl: raw.download_url,
+    urlExpiresAt: raw.url_expires_at,
   }
 }
 

@@ -78,3 +78,52 @@ export interface MaintenanceFilters {
   needsReview: boolean
   unassigned: boolean
 }
+
+/** Fases en el orden que las devuelve el backend. */
+export const ATTACHMENT_PHASES = [
+  { value: 'antes', label: 'Reporte (antes)' },
+  { value: 'despues', label: 'Tecnico (despues)' },
+  { value: 'soportes', label: 'Soportes' },
+] as const
+
+export function phaseLabel(phase: string): string {
+  return ATTACHMENT_PHASES.find(p => p.value === phase)?.label ?? phase
+}
+
+/**
+ * Archivo de GET /staff/maintenance/requests/{id}/attachments.
+ * url y downloadUrl son URL firmadas de R2 que caducan en urlExpiresAt:
+ * no se guardan, se vuelven a pedir al endpoint.
+ */
+export interface MaintenanceAttachment {
+  id: number
+  requestId: number
+  phase: string
+  position: number
+  originalName: string | null
+  contentType: string | null
+  sizeBytes: number | null
+  storageStatus: string | null
+  createdAt: string
+  /** Para mostrarlo en el navegador (<img>, <video>, visor PDF). */
+  url: string
+  /** Fuerza la descarga con nombre MNT-000067-archivo1.jpg. */
+  downloadUrl: string
+  urlExpiresAt: string
+}
+
+export type AttachmentPreviewKind = 'image' | 'video' | 'audio' | 'pdf'
+
+// HEIC/HEIF y TIFF son image/* pero solo Safari los pinta: se tratan como descarga
+const NON_RENDERABLE_IMAGES = ['image/heic', 'image/heif', 'image/tiff']
+
+/** Como se puede ver el archivo dentro de Harbor; null = solo descarga. */
+export function previewKind(contentType: string | null): AttachmentPreviewKind | null {
+  const ct = (contentType ?? '').toLowerCase().split(';')[0].trim()
+  if (!ct) return null
+  if (ct === 'application/pdf') return 'pdf'
+  if (ct.startsWith('image/')) return NON_RENDERABLE_IMAGES.includes(ct) ? null : 'image'
+  if (ct.startsWith('video/')) return 'video'
+  if (ct.startsWith('audio/')) return 'audio'
+  return null
+}

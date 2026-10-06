@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
+import type { MaintenanceRequest } from '~/types/maintenance'
 
 definePageMeta({ layout: 'default' })
 
@@ -11,6 +12,14 @@ const {
 } = useMaintenance()
 
 onMounted(fetchRequests)
+
+const attachmentsOpen = ref(false)
+const attachmentsRequest = ref<MaintenanceRequest | null>(null)
+
+function showAttachments(request: MaintenanceRequest) {
+  attachmentsRequest.value = request
+  attachmentsOpen.value = true
+}
 
 const rangeLabel = computed(() => {
   if (!requests.value.length) return ''
@@ -37,7 +46,12 @@ const rangeLabel = computed(() => {
     <MaintenanceRequestFilters class="mb-4" />
 
     <div class="flex-1 min-h-0">
-      <MaintenanceRequestsTable :requests="requests" :loading="loading" :error="error" />
+      <MaintenanceRequestsTable
+        :requests="requests"
+        :loading="loading"
+        :error="error"
+        @attachments="showAttachments"
+      />
     </div>
 
     <!-- Paginacion: el endpoint no devuelve total, solo se sabe si la pagina vino llena -->
@@ -52,5 +66,7 @@ const rangeLabel = computed(() => {
         <ChevronRight class="h-4 w-4" />
       </Button>
     </div>
+
+    <MaintenanceAttachmentsModal v-model:open="attachmentsOpen" :request="attachmentsRequest" />
   </div>
 </template>

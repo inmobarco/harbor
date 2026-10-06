@@ -19,5 +19,6 @@ export function useMaintenance() {
     resetFilters: store.resetFilters,
     nextPage: store.nextPage,
     prevPage: store.prevPage,
+    fetchAttachments: store.fetchAttachments,
   }
 }

@@ -1,8 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { buildMaintenanceQuery, normalizeMaintenanceRequest } from '~/lib/maintenanceMappers'
-import type { MaintenanceFilters, MaintenanceRequest } from '~/types/maintenance'
+import {
+  buildMaintenanceQuery,
+  normalizeMaintenanceAttachment,
+  normalizeMaintenanceRequest,
+} from '~/lib/maintenanceMappers'
+import type {
+  MaintenanceAttachment,
+  MaintenanceFilters,
+  MaintenanceRequest,
+} from '~/types/maintenance'
 
 const PAGE_SIZE = 100
 
@@ -81,6 +89,27 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     await fetchRequests()
   }
 
+  /**
+   * No se cachea: las URL firmadas caducan a los 15 minutos, asi que cada
+   * apertura (o renovacion) vuelve a pedirlas.
+   */
+  async function fetchAttachments(requestId: number): Promise<MaintenanceAttachment[]> {
+    const config = useRuntimeConfig()
+    const authStore = useAuthStore()
+    if (!authStore.token) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await $fetch<any[]>(
+        `${config.public.apiBaseUrl}/staff/maintenance/requests/${requestId}/attachments`,
+        { headers: { Authorization: `Bearer ${authStore.token}` } },
+      )
+      return data.map(normalizeMaintenanceAttachment)
+    } catch (err: any) {
+      console.error('Error cargando adjuntos:', err)
+      throw new Error(errorMessage(err, 'Error al cargar los adjuntos'))
+    }
+  }
+
   return {
     // State
     requests,
@@ -96,5 +125,6 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     resetFilters,
     nextPage,
     prevPage,
+    fetchAttachments,
   }
 })
