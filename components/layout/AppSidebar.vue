@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ROUTE_MANAGE_ROLES } from '~/types/route'
+import { MAINTENANCE_VIEW_ROLES } from '~/types/maintenance'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -20,6 +21,7 @@ const allNavItems: NavItem[] = [
   { label: 'Agenda', icon: 'Calendar', to: '/agenda' },
   { label: 'Mapa', icon: 'Map', to: '/mapa' },
   { label: 'Rutero', icon: 'Route', to: '/rutero', roles: ROUTE_MANAGE_ROLES },
+  { label: 'Mantenimiento', icon: 'Wrench', to: '/mantenimiento', roles: MAINTENANCE_VIEW_ROLES },
   { label: 'Asesores', icon: 'Users', to: '/asesores' },
 ]
 

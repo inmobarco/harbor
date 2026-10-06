@@ -1,8 +1,10 @@
 import { ROUTE_MANAGE_ROLES } from '~/types/route'
+import { MAINTENANCE_VIEW_ROLES } from '~/types/maintenance'
 
 /** Rutas que exigen un rol especifico ademas de la sesion. */
 const ROLE_RESTRICTED: Record<string, readonly string[]> = {
   '/rutero': ROUTE_MANAGE_ROLES,
+  '/mantenimiento': MAINTENANCE_VIEW_ROLES,
 }
 
 export default defineNuxtRouteMiddleware((to) => {
