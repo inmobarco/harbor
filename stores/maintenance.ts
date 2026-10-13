@@ -1,92 +1,162 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import {
   buildMaintenanceQuery,
   normalizeMaintenanceAttachment,
   normalizeMaintenanceRequest,
+  normalizeMaintenanceStaff,
 } from '~/lib/maintenanceMappers'
+import { CLOSED_STATUSES, OPEN_STATUSES } from '~/types/maintenance'
 import type {
   MaintenanceAttachment,
   MaintenanceFilters,
   MaintenanceRequest,
+  MaintenanceStaff,
 } from '~/types/maintenance'
 
-const PAGE_SIZE = 100
+/** Tope del endpoint. El tablero trae todas las abiertas en una sola pagina. */
+const OPEN_LIMIT = 500
+const CLOSED_PAGE_SIZE = 50
 
 function errorMessage(err: any, fallback: string): string {
   return err?.data?.detail || err?.data?.message || err?.message || fallback
 }
 
 function emptyFilters(): MaintenanceFilters {
-  return { status: [], priority: [], q: '', needsReview: false, unassigned: false }
+  return { q: '', priority: [], assignee: null, quick: null }
+}
+
+function fold(value: string): string {
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
 export const useMaintenanceStore = defineStore('maintenance', () => {
   // ─── State ────────────────────────────────────────────────────────────────
-  const requests = ref<MaintenanceRequest[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  /** Solicitudes en curso (recibida → resuelta). Se filtran en el cliente. */
+  const openRequests = ref<MaintenanceRequest[]>([])
+  const openLoading = ref(false)
+  const openError = ref<string | null>(null)
+  /** Llego una pagina llena: puede haber mas abiertas de las que se muestran. */
+  const openTruncated = ref(false)
+
+  /** Cerradas y canceladas: crecen sin limite, se paginan contra el servidor. */
+  const closedRequests = ref<MaintenanceRequest[]>([])
+  const closedLoading = ref(false)
+  const closedError = ref<string | null>(null)
+  const closedHasMore = ref(false)
+
+  const staff = ref<MaintenanceStaff[]>([])
   const filters = ref<MaintenanceFilters>(emptyFilters())
-  const offset = ref(0)
-  /** El endpoint no devuelve total: si llega una pagina llena, puede haber mas. */
-  const hasMore = ref(false)
 
-  // Evita que una respuesta lenta pise a una mas reciente al teclear en la busqueda
-  let requestSeq = 0
+  // Evita que una respuesta lenta pise a una mas reciente al cambiar filtros
+  let closedSeq = 0
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
-  async function fetchRequests() {
+  // ─── Computed ─────────────────────────────────────────────────────────────
+  /**
+   * La sesion no trae el id del usuario: se busca por nombre en /staff/users.
+   * Es el mismo nombre que arma el backend en assigned_user_name.
+   */
+  const myUserId = computed<number | null>(() => {
+    const user = useAuthStore().user
+    if (!user) return null
+    const myName = fold(`${user.first_name} ${user.last_name}`)
+    const matches = staff.value.filter(s => fold(s.name) === myName)
+    return matches.length === 1 ? matches[0].id : null
+  })
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function requestContext() {
     const config = useRuntimeConfig()
     const authStore = useAuthStore()
-    if (!authStore.token) {
-      error.value = 'No hay sesion activa'
+    if (!authStore.token) return null
+    return {
+      base: config.public.apiBaseUrl,
+      headers: { Authorization: `Bearer ${authStore.token}` },
+    }
+  }
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
+  async function fetchOpen() {
+    const ctx = requestContext()
+    if (!ctx) {
+      openError.value = 'No hay sesion activa'
       return
     }
 
-    const seq = ++requestSeq
-    loading.value = true
-    error.value = null
+    openLoading.value = true
+    openError.value = null
     try {
-      const data = await $fetch<any[]>(`${config.public.apiBaseUrl}/staff/maintenance/requests`, {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-        query: buildMaintenanceQuery(filters.value, PAGE_SIZE, offset.value),
+      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
+        headers: ctx.headers,
+        query: buildMaintenanceQuery(OPEN_STATUSES, null, OPEN_LIMIT, 0),
       })
-      if (seq !== requestSeq) return
-      requests.value = data.map(normalizeMaintenanceRequest)
-      hasMore.value = data.length === PAGE_SIZE
+      openRequests.value = data.map(normalizeMaintenanceRequest)
+      openTruncated.value = data.length === OPEN_LIMIT
     } catch (err: any) {
-      if (seq !== requestSeq) return
       console.error('Error cargando solicitudes de mantenimiento:', err)
-      error.value = errorMessage(err, 'Error al cargar las solicitudes de mantenimiento')
+      openError.value = errorMessage(err, 'Error al cargar las solicitudes de mantenimiento')
     } finally {
-      if (seq === requestSeq) loading.value = false
+      openLoading.value = false
     }
   }
 
-  /** Cambiar filtros siempre vuelve a la primera pagina. */
-  async function setFilters(patch: Partial<MaintenanceFilters>) {
+  /** reset: vuelve a la primera pagina (al cambiar filtros). Si no, agrega la siguiente. */
+  async function fetchClosed({ reset }: { reset: boolean }) {
+    const ctx = requestContext()
+    if (!ctx) {
+      closedError.value = 'No hay sesion activa'
+      return
+    }
+
+    const seq = ++closedSeq
+    const offset = reset ? 0 : closedRequests.value.length
+    closedLoading.value = true
+    closedError.value = null
+    try {
+      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
+        headers: ctx.headers,
+        query: buildMaintenanceQuery(CLOSED_STATUSES, filters.value, CLOSED_PAGE_SIZE, offset),
+      })
+      if (seq !== closedSeq) return
+      const page = data.map(normalizeMaintenanceRequest)
+      closedRequests.value = reset ? page : [...closedRequests.value, ...page]
+      closedHasMore.value = data.length === CLOSED_PAGE_SIZE
+    } catch (err: any) {
+      if (seq !== closedSeq) return
+      console.error('Error cargando solicitudes cerradas:', err)
+      closedError.value = errorMessage(err, 'Error al cargar las solicitudes cerradas')
+    } finally {
+      if (seq === closedSeq) closedLoading.value = false
+    }
+  }
+
+  /** Por ahora solo los managers reciben solicitudes. Se piden una vez por sesion. */
+  async function fetchStaff() {
+    if (staff.value.length) return
+    const ctx = requestContext()
+    if (!ctx) return
+    try {
+      const data = await $fetch<any[]>(`${ctx.base}/staff/users`, {
+        headers: ctx.headers,
+        params: { roles: 'manager' },
+      })
+      staff.value = data
+        .filter(u => u.is_active !== false)
+        .map(normalizeMaintenanceStaff)
+        .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    } catch (err) {
+      // No bloquea el tablero: solo se pierde el chip "Mias" y los colores
+      console.error('Error cargando responsables de mantenimiento:', err)
+    }
+  }
+
+  function setFilters(patch: Partial<MaintenanceFilters>) {
     filters.value = { ...filters.value, ...patch }
-    offset.value = 0
-    await fetchRequests()
   }
 
-  async function resetFilters() {
+  function resetFilters() {
     filters.value = emptyFilters()
-    offset.value = 0
-    await fetchRequests()
-  }
-
-  async function nextPage() {
-    if (!hasMore.value) return
-    offset.value += PAGE_SIZE
-    await fetchRequests()
-  }
-
-  async function prevPage() {
-    if (offset.value === 0) return
-    offset.value = Math.max(0, offset.value - PAGE_SIZE)
-    await fetchRequests()
   }
 
   /**
@@ -94,14 +164,13 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
    * apertura (o renovacion) vuelve a pedirlas.
    */
   async function fetchAttachments(requestId: number): Promise<MaintenanceAttachment[]> {
-    const config = useRuntimeConfig()
-    const authStore = useAuthStore()
-    if (!authStore.token) throw new Error('No hay sesion activa')
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
 
     try {
       const data = await $fetch<any[]>(
-        `${config.public.apiBaseUrl}/staff/maintenance/requests/${requestId}/attachments`,
-        { headers: { Authorization: `Bearer ${authStore.token}` } },
+        `${ctx.base}/staff/maintenance/requests/${requestId}/attachments`,
+        { headers: ctx.headers },
       )
       return data.map(normalizeMaintenanceAttachment)
     } catch (err: any) {
@@ -112,19 +181,24 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
 
   return {
     // State
-    requests,
-    loading,
-    error,
+    openRequests,
+    openLoading,
+    openError,
+    openTruncated,
+    closedRequests,
+    closedLoading,
+    closedError,
+    closedHasMore,
+    staff,
     filters,
-    offset,
-    hasMore,
-    pageSize: PAGE_SIZE,
+    // Computed
+    myUserId,
     // Actions
-    fetchRequests,
+    fetchOpen,
+    fetchClosed,
+    fetchStaff,
     setFilters,
     resetFilters,
-    nextPage,
-    prevPage,
     fetchAttachments,
   }
 })

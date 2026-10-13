@@ -1,4 +1,9 @@
-import type { MaintenanceAttachment, MaintenanceFilters, MaintenanceRequest } from '~/types/maintenance'
+import type {
+  MaintenanceAttachment,
+  MaintenanceFilters,
+  MaintenanceRequest,
+  MaintenanceStaff,
+} from '~/types/maintenance'
 
 /**
  * Mapeo de /staff/maintenance/requests a los tipos de la app. Aislado del
@@ -65,17 +70,32 @@ export function normalizeMaintenanceAttachment(raw: any): MaintenanceAttachment 
   }
 }
 
-/** Arma el query string: listas como CSV y solo los filtros activos. */
+/**
+ * Arma el query string: listas como CSV y solo los filtros activos.
+ * Los accesos rapidos (quick) no tienen equivalente en el backend: se aplican
+ * en el cliente y por eso no se envian.
+ */
 export function buildMaintenanceQuery(
-  filters: MaintenanceFilters,
+  statuses: readonly string[],
+  filters: Pick<MaintenanceFilters, 'q' | 'priority' | 'assignee'> | null,
   limit: number,
   offset: number,
 ): Record<string, string | number | boolean> {
   const query: Record<string, string | number | boolean> = { limit, offset }
-  if (filters.status.length) query.status = filters.status.join(',')
+  if (statuses.length) query.status = statuses.join(',')
+  if (!filters) return query
   if (filters.priority.length) query.priority = filters.priority.join(',')
   if (filters.q.trim()) query.q = filters.q.trim()
-  if (filters.needsReview) query.needs_review = true
-  if (filters.unassigned) query.unassigned = true
+  if (filters.assignee === 'none') query.unassigned = true
+  else if (typeof filters.assignee === 'number') query.assigned_user_id = filters.assignee
   return query
+}
+
+/** Fila de /staff/users a responsable de mantenimiento. */
+export function normalizeMaintenanceStaff(raw: any): MaintenanceStaff {
+  return {
+    id: Number(raw.id),
+    name: [raw.first_name, raw.last_name].filter(Boolean).join(' ').trim() || raw.username || `Usuario ${raw.id}`,
+    color: str(raw.color),
+  }
 }

@@ -4,92 +4,102 @@ import { useDebounceFn } from '@vueuse/core'
 import { Search, X } from 'lucide-vue-next'
 import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
-import { Checkbox } from '~/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
-import { MAINTENANCE_PRIORITIES, MAINTENANCE_STATUSES } from '~/types/maintenance'
-import type { MaintenancePriority, MaintenanceStatus } from '~/types/maintenance'
+import { MAINTENANCE_PRIORITIES } from '~/types/maintenance'
+import type { AssigneeFilter, MaintenancePriority } from '~/types/maintenance'
 
-// radix Select no admite value vacio: 'all' representa "sin filtro"
-const ALL = 'all'
-
-const { filters, setFilters, resetFilters } = useMaintenance()
+const { filters, setFilters, resetFilters, myUserId, activeAssignees } = useMaintenance()
 
 const search = ref(filters.value.q)
-const applySearch = useDebounceFn((q: string) => setFilters({ q }), 350)
+const applySearch = useDebounceFn((q: string) => setFilters({ q }), 300)
 watch(search, q => applySearch(q))
+// Si otro control limpia los filtros, vaciar tambien la caja de busqueda
+watch(() => filters.value.q, q => { if (q !== search.value.trim()) search.value = q })
 
-const statusValue = computed(() => filters.value.status[0] ?? ALL)
-const priorityValue = computed(() => filters.value.priority[0] ?? ALL)
-
-function onStatus(value: any) {
-  setFilters({ status: value === ALL ? [] : [value as MaintenanceStatus] })
+function togglePriority(p: MaintenancePriority) {
+  const current = filters.value.priority
+  setFilters({ priority: current.includes(p) ? current.filter(x => x !== p) : [...current, p] })
 }
 
-function onPriority(value: any) {
-  setFilters({ priority: value === ALL ? [] : [value as MaintenancePriority] })
+function toggleAssignee(value: AssigneeFilter) {
+  setFilters({ assignee: filters.value.assignee === value ? null : value })
 }
+
+/** "Mias" ya cubre al usuario actual: no repetirlo con su nombre. */
+const otherAssignees = computed(() => activeAssignees.value.filter(a => a.id !== myUserId.value))
 
 const hasFilters = computed(() =>
-  !!filters.value.q || filters.value.status.length > 0 || filters.value.priority.length > 0
-  || filters.value.needsReview || filters.value.unassigned
+  !!filters.value.q || filters.value.priority.length > 0
+  || filters.value.assignee !== null || filters.value.quick !== null
 )
 
 function clear() {
   search.value = ''
   resetFilters()
 }
+
+function chipClass(on: boolean) {
+  return on
+    ? 'bg-harbor-black border-harbor-black text-white'
+    : 'bg-harbor-pure-white border-harbor-gray text-harbor-black/70 hover:border-harbor-black/40'
+}
+
+function firstName(name: string) {
+  return name.split(' ')[0]
+}
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-3 bg-harbor-pure-white border border-harbor-gray rounded-xl p-4">
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3 bg-harbor-pure-white border border-harbor-gray rounded-xl px-4 py-3">
     <div class="relative w-80">
       <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-harbor-black/40" />
-      <Input v-model="search" placeholder="Radicado, nombre, direccion o contrato..." class="pl-9" />
+      <Input v-model="search" placeholder="Radicado, nombre, conjunto, contrato..." class="pl-9" />
     </div>
 
-    <div class="w-52">
-      <Select :model-value="statusValue" @update:model-value="onStatus">
-        <SelectTrigger>
-          <SelectValue placeholder="Estado" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem :value="ALL">Todos los estados</SelectItem>
-          <SelectItem v-for="s in MAINTENANCE_STATUSES" :key="s.value" :value="s.value">
-            {{ s.label }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span class="text-xs font-semibold text-harbor-black/50 mr-1">Prioridad</span>
+      <button
+        v-for="p in MAINTENANCE_PRIORITIES"
+        :key="p.value"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+        :class="chipClass(filters.priority.includes(p.value))"
+        @click="togglePriority(p.value)"
+      >
+        {{ p.label }}
+      </button>
     </div>
 
-    <div class="w-44">
-      <Select :model-value="priorityValue" @update:model-value="onPriority">
-        <SelectTrigger>
-          <SelectValue placeholder="Prioridad" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem :value="ALL">Todas las prioridades</SelectItem>
-          <SelectItem v-for="p in MAINTENANCE_PRIORITIES" :key="p.value" :value="p.value">
-            {{ p.label }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span class="text-xs font-semibold text-harbor-black/50 mr-1">Responsable</span>
+      <button
+        v-if="myUserId !== null"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+        :class="chipClass(filters.assignee === myUserId)"
+        @click="toggleAssignee(myUserId)"
+      >
+        Mias
+      </button>
+      <button
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+        :class="chipClass(filters.assignee === 'none')"
+        @click="toggleAssignee('none')"
+      >
+        Sin asignar
+      </button>
+      <button
+        v-for="a in otherAssignees"
+        :key="a.id"
+        type="button"
+        class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+        :class="chipClass(filters.assignee === a.id)"
+        :title="a.name"
+        @click="toggleAssignee(a.id)"
+      >
+        {{ firstName(a.name) }}
+      </button>
     </div>
-
-    <label class="flex items-center gap-2 text-sm text-harbor-black cursor-pointer">
-      <Checkbox
-        :model-value="filters.needsReview"
-        @update:model-value="v => setFilters({ needsReview: v === true })"
-      />
-      Requiere revision
-    </label>
-
-    <label class="flex items-center gap-2 text-sm text-harbor-black cursor-pointer">
-      <Checkbox
-        :model-value="filters.unassigned"
-        @update:model-value="v => setFilters({ unassigned: v === true })"
-      />
-      Sin responsable
-    </label>
 
     <Button v-if="hasFilters" variant="ghost" size="sm" class="ml-auto" @click="clear">
       <X class="h-4 w-4" />

@@ -11,7 +11,11 @@ import {
 import { ATTACHMENT_PHASES, phaseLabel, previewKind } from '~/types/maintenance'
 import type { MaintenanceAttachment, MaintenanceRequest } from '~/types/maintenance'
 
-const props = defineProps<{ request: MaintenanceRequest | null }>()
+const props = defineProps<{
+  request: MaintenanceRequest | null
+  /** Archivo a mostrar al abrir; si no viene, el primero. */
+  initialId?: number | null
+}>()
 const open = defineModel<boolean>('open', { default: false })
 
 const { fetchAttachments } = useMaintenance()
@@ -75,7 +79,7 @@ function isExpiring(): boolean {
 watch(open, (isOpen) => {
   if (isOpen) {
     attachments.value = []
-    selectedId.value = null
+    selectedId.value = props.initialId ?? null
     load()
   }
 })

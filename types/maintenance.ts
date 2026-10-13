@@ -70,13 +70,66 @@ export interface MaintenanceRequest {
   isActive: boolean
 }
 
-/** Filtros que se envian al endpoint. Vacio = sin filtro. */
+/** Estados en curso: el tablero los carga todos de una vez. */
+export const OPEN_STATUSES: MaintenanceStatus[] = [
+  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion', 'resuelta',
+]
+
+/** Estados finales: no se reabren, solo se consultan en la tabla. */
+export const CLOSED_STATUSES: MaintenanceStatus[] = ['cerrada', 'cancelada']
+
+/** Recorrido normal de una solicitud. Se puede saltar o retroceder entre etapas. */
+export const STATUS_FLOW: MaintenanceStatus[] = [
+  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion', 'resuelta', 'cerrada',
+]
+
+/**
+ * Tiempo de respuesta esperado por prioridad, en horas desde que se recibio.
+ * El reloj sigue corriendo en todas las etapas hasta que la solicitud se resuelve.
+ */
+export const SLA_HOURS: Record<MaintenancePriority, number> = {
+  urgente: 24,
+  alta: 72,
+  media: 5 * 24,
+  baja: 10 * 24,
+}
+
+/** Estados en los que corre el plazo. En resuelta el trabajo ya se hizo. */
+export const SLA_STATUSES: MaintenanceStatus[] = [
+  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion',
+]
+
+export const BOARD_COLUMNS: {
+  key: string
+  title: string
+  hint: string
+  statuses: MaintenanceStatus[]
+  dotClass: string
+}[] = [
+  { key: 'nuevas', title: 'Nuevas', hint: 'Clasificar, asignar y validar contrato', statuses: ['recibida', 'en_revision'], dotClass: 'bg-harbor-info' },
+  { key: 'aprobacion', title: 'Esperando aprobacion', hint: 'Cotizacion enviada al propietario', statuses: ['esperando_aprobacion'], dotClass: 'bg-harbor-warning' },
+  { key: 'curso', title: 'En curso', hint: 'Visita agendada o tecnico en sitio', statuses: ['programada', 'en_ejecucion'], dotClass: 'bg-harbor-blue' },
+  { key: 'resueltas', title: 'Resueltas', hint: 'Confirmar con el cliente y cerrar', statuses: ['resuelta'], dotClass: 'bg-harbor-success' },
+]
+
+export type QuickFilterKey = 'nuevas24' | 'urgentes' | 'sinAsignar' | 'revision' | 'vencidas'
+
+/** Responsable: id de usuario, 'none' = sin asignar, null = todos. */
+export type AssigneeFilter = number | 'none' | null
+
 export interface MaintenanceFilters {
-  status: MaintenanceStatus[]
-  priority: MaintenancePriority[]
   q: string
-  needsReview: boolean
-  unassigned: boolean
+  priority: MaintenancePriority[]
+  assignee: AssigneeFilter
+  /** Accesos rapidos de los indicadores. Solo aplican a solicitudes en curso. */
+  quick: QuickFilterKey | null
+}
+
+/** Usuario de /staff/users que puede tener solicitudes asignadas. */
+export interface MaintenanceStaff {
+  id: number
+  name: string
+  color: string | null
 }
 
 /** Fases en el orden que las devuelve el backend. */
