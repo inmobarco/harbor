@@ -3,16 +3,12 @@ import { computed, ref, watch } from 'vue'
 import {
   DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle,
 } from 'reka-ui'
-import {
-  AlertTriangle, CheckCircle2, File as FileIcon, FileText, Film, Image as ImageIcon, Music, X, XCircle,
-} from 'lucide-vue-next'
-import {
-  ageHours, formatAge, formatDate, humanize, locationLabel, slaHours, slaState,
-} from '~/lib/maintenanceView'
-import {
-  ATTACHMENT_PHASES, STATUS_FLOW, previewKind, statusLabel,
+import { X, XCircle } from 'lucide-vue-next'
+import { formatDate, locationLabel } from '~/lib/maintenanceView'
+import { STATUS_FLOW, statusLabel } from '~/types/maintenance'
+import type {
+  MaintenanceEvent, MaintenanceRequest, MaintenanceRequestDetail, MaintenanceStatus,
 } from '~/types/maintenance'
-import type { MaintenanceAttachment, MaintenanceRequest, MaintenanceStatus } from '~/types/maintenance'
 
 const props = defineProps<{
   request: MaintenanceRequest | null
@@ -21,99 +17,72 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 
-const { fetchAttachments } = useMaintenance()
+const { fetchDetail, fetchEvents } = useMaintenance()
 
-// ─── Adjuntos ───────────────────────────────────────────────────────────────
-const attachments = ref<MaintenanceAttachment[]>([])
-const attachmentsLoading = ref(false)
-const attachmentsError = ref<string | null>(null)
-const brokenThumbs = ref(new Set<number>())
-const viewerOpen = ref(false)
-const viewerInitialId = ref<number | null>(null)
+const tab = ref<'resumen' | 'bitacora'>('resumen')
 
-// Evita que los adjuntos de una solicitud anterior aparezcan en la nueva
-let attachmentsSeq = 0
+const detail = ref<MaintenanceRequestDetail | null>(null)
+const detailLoading = ref(false)
+const detailError = ref<string | null>(null)
 
-async function loadAttachments() {
-  const r = props.request
-  attachments.value = []
-  attachmentsError.value = null
-  brokenThumbs.value = new Set()
-  if (!r || !r.attachmentCount) return
+const events = ref<MaintenanceEvent[]>([])
+const eventsLoading = ref(false)
+const eventsError = ref<string | null>(null)
 
-  const seq = ++attachmentsSeq
-  attachmentsLoading.value = true
+// Una respuesta de la solicitud anterior no debe pintarse en la nueva
+let detailSeq = 0
+let eventsSeq = 0
+
+async function loadDetail(requestId: number) {
+  const seq = ++detailSeq
+  detail.value = null
+  detailError.value = null
+  detailLoading.value = true
   try {
-    const list = await fetchAttachments(r.id)
-    if (seq === attachmentsSeq) attachments.value = list
+    const data = await fetchDetail(requestId)
+    if (seq === detailSeq) detail.value = data
   } catch (err: any) {
-    if (seq === attachmentsSeq) attachmentsError.value = err?.message || 'Error al cargar los adjuntos'
+    if (seq === detailSeq) detailError.value = err?.message || 'Error al cargar el detalle'
   } finally {
-    if (seq === attachmentsSeq) attachmentsLoading.value = false
+    if (seq === detailSeq) detailLoading.value = false
   }
 }
 
-watch(() => [open.value, props.request?.id] as const, ([isOpen]) => {
-  if (isOpen) loadAttachments()
+async function loadEvents(requestId: number) {
+  const seq = ++eventsSeq
+  events.value = []
+  eventsError.value = null
+  eventsLoading.value = true
+  try {
+    const data = await fetchEvents(requestId)
+    if (seq === eventsSeq) events.value = data
+  } catch (err: any) {
+    if (seq === eventsSeq) eventsError.value = err?.message || 'Error al cargar la bitacora'
+  } finally {
+    if (seq === eventsSeq) eventsLoading.value = false
+  }
+}
+
+// Cada apertura vuelve a pedir el detalle y la bitacora: otra persona pudo
+// haberlos cambiado. Los adjuntos los carga el resumen.
+watch(() => [open.value, props.request?.id] as const, ([isOpen, id], previous) => {
+  if (!isOpen || id === undefined) return
+  if (previous?.[1] !== id) tab.value = 'resumen'
+  loadDetail(id)
+  loadEvents(id)
 }, { immediate: true })
-
-const phases = computed(() =>
-  ATTACHMENT_PHASES.map(p => ({
-    ...p,
-    items: attachments.value.filter(a => a.phase === p.value),
-  }))
-)
-
-function openViewer(a: MaintenanceAttachment) {
-  viewerInitialId.value = a.id
-  viewerOpen.value = true
-}
-
-function markBroken(id: number) {
-  brokenThumbs.value = new Set(brokenThumbs.value).add(id)
-}
-
-function iconFor(a: MaintenanceAttachment) {
-  switch (previewKind(a.contentType)) {
-    case 'image': return ImageIcon
-    case 'video': return Film
-    case 'audio': return Music
-    case 'pdf': return FileText
-    default: return FileIcon
-  }
-}
-
-// ─── Resumen ────────────────────────────────────────────────────────────────
-const sla = computed(() => props.request ? slaState(props.request, props.now) : null)
 
 const steps = computed(() => {
   const status = props.request?.status as MaintenanceStatus | undefined
   const current = status ? STATUS_FLOW.indexOf(status) : -1
-  // Se puede saltar etapas y no hay historial aun: las anteriores se marcan
-  // como "pasadas", no como completadas
+  // Se pueden saltar etapas: las anteriores se marcan como "pasadas", no como
+  // completadas. El recorrido real esta en la bitacora.
   return STATUS_FLOW.map((s, i) => ({
     status: s,
     label: statusLabel(s),
     state: i < current ? 'past' : i === current ? 'current' : 'next',
   }))
 })
-
-/** El listado trae solo 160 caracteres de la descripcion. */
-const descriptionTruncated = computed(() => (props.request?.descriptionPreview?.length ?? 0) >= 160)
-
-const entryLabel = computed(() => {
-  const v = props.request?.entryAuthorization
-  if (v === true) return { text: 'Si, autoriza ingreso', cls: 'text-emerald-700' }
-  if (v === false) return { text: 'No autoriza', cls: 'text-harbor-error' }
-  if (v) return { text: humanize(v), cls: '' }
-  return { text: '—', cls: '' }
-})
-
-const SLA_TEXT = {
-  ok: 'text-harbor-black/50',
-  warn: 'text-amber-700',
-  late: 'text-harbor-error',
-}
 </script>
 
 <template>
@@ -205,146 +174,46 @@ const SLA_TEXT = {
             </ol>
           </div>
 
-          <!-- Cuerpo -->
-          <div class="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
-            <div
-              v-if="request.needsReview"
-              class="flex items-start gap-2 rounded-lg bg-harbor-warning/15 px-3 py-2.5 text-sm font-semibold text-amber-700"
+          <!-- Pestañas -->
+          <div class="flex gap-1 border-b border-harbor-gray px-5" role="tablist">
+            <button
+              v-for="t in [{ key: 'resumen', label: 'Resumen' }, { key: 'bitacora', label: 'Bitacora' }] as const"
+              :key="t.key"
+              type="button"
+              role="tab"
+              :aria-selected="tab === t.key"
+              class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm font-bold transition-colors"
+              :class="tab === t.key ? 'border-harbor-blue text-harbor-black' : 'border-transparent text-harbor-black/50 hover:text-harbor-black'"
+              @click="tab = t.key"
             >
-              <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{{ request.reviewReason || 'Marcada para revision' }}</span>
-            </div>
-
-            <section>
-              <h5 class="mb-2 text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">Descripcion del reportante</h5>
-              <p class="rounded-lg border border-harbor-gray/60 bg-harbor-neutral-white p-3 text-sm leading-relaxed text-harbor-black">
-                {{ request.descriptionPreview || 'Sin descripcion.' }}<template v-if="descriptionTruncated">…</template>
-              </p>
-              <p v-if="descriptionTruncated" class="mt-1 text-xs text-harbor-black/40">
-                Vista previa de 160 caracteres. El texto completo llegara con el detalle de la solicitud.
-              </p>
-            </section>
-
-            <section>
-              <h5 class="mb-2 text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">Reportante e inmueble</h5>
-              <dl class="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Reportante</dt>
-                  <dd class="font-semibold text-harbor-black">{{ request.reporterName || '—' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Telefono</dt>
-                  <dd class="font-mono font-semibold text-harbor-black">{{ request.reporterPhone || '—' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Tipo de cliente</dt>
-                  <dd class="font-semibold text-harbor-black">{{ humanize(request.clientType) }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Contrato</dt>
-                  <dd class="flex items-center gap-1 font-semibold text-harbor-black">
-                    <span class="font-mono">{{ request.contractNumber || '—' }}</span>
-                    <template v-if="request.contractNumber">
-                      <span v-if="request.contractVerified" class="inline-flex items-center gap-0.5 text-xs text-emerald-700">
-                        <CheckCircle2 class="h-3.5 w-3.5" /> verificado
-                      </span>
-                      <span v-else class="text-xs text-amber-700">· sin verificar</span>
-                    </template>
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Inmueble</dt>
-                  <dd class="font-semibold text-harbor-black">{{ locationLabel(request) || '—' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Direccion</dt>
-                  <dd class="font-semibold text-harbor-black break-words">{{ request.propertyAddress || '—' }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Ingreso al inmueble</dt>
-                  <dd class="font-semibold" :class="entryLabel.cls || 'text-harbor-black'">{{ entryLabel.text }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">¿Ocurre ahora?</dt>
-                  <dd class="font-semibold" :class="request.isHappeningNow ? 'text-harbor-error' : 'text-harbor-black'">
-                    {{ request.isHappeningNow ? 'Si' : 'No' }}
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">A cargo de</dt>
-                  <dd class="font-semibold text-harbor-black">{{ humanize(request.responsibleParty) }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Antiguedad</dt>
-                  <dd class="font-semibold tabular-nums" :class="sla ? SLA_TEXT[sla] : 'text-harbor-black'">
-                    {{ formatAge(ageHours(request, now)) }}
-                    <span v-if="sla" class="text-xs font-medium">
-                      de {{ slaHours(request) }} h<template v-if="sla === 'late'"> · vencida</template>
-                    </span>
-                  </dd>
-                </div>
-                <div v-if="request.closedAt">
-                  <dt class="text-xs font-semibold text-harbor-black/50">{{ request.status === 'cancelada' ? 'Cancelada' : 'Cerrada' }}</dt>
-                  <dd class="font-semibold text-harbor-black">{{ formatDate(request.closedAt) }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs font-semibold text-harbor-black/50">Ultima actualizacion</dt>
-                  <dd class="font-semibold text-harbor-black">{{ formatDate(request.updatedAt) }}</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section>
-              <h5 class="mb-2 text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">
-                Adjuntos<template v-if="request.attachmentCount"> ({{ request.attachmentCount }})</template>
-              </h5>
-
-              <p v-if="!request.attachmentCount" class="text-sm text-harbor-black/40">Esta solicitud no tiene archivos.</p>
-              <p v-else-if="attachmentsLoading" class="text-sm text-harbor-black/50">Cargando adjuntos...</p>
-              <p v-else-if="attachmentsError" class="text-sm text-harbor-error">{{ attachmentsError }}</p>
-
-              <div v-else class="space-y-3">
-                <div v-for="phase in phases" :key="phase.value">
-                  <p class="mb-1.5 text-xs font-bold text-harbor-black/60">{{ phase.label }}</p>
-                  <div class="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2">
-                    <button
-                      v-for="a in phase.items"
-                      :key="a.id"
-                      type="button"
-                      class="relative grid aspect-square place-items-center overflow-hidden rounded-lg border border-harbor-gray bg-harbor-surface-gray transition-colors hover:border-harbor-blue"
-                      :title="a.originalName ?? undefined"
-                      @click="openViewer(a)"
-                    >
-                      <img
-                        v-if="previewKind(a.contentType) === 'image' && !brokenThumbs.has(a.id)"
-                        :src="a.url"
-                        :alt="a.originalName ?? 'Adjunto'"
-                        loading="lazy"
-                        class="h-full w-full object-cover"
-                        @error="markBroken(a.id)"
-                      />
-                      <span v-else class="flex flex-col items-center gap-1 px-1.5 text-center text-[10px] font-semibold text-harbor-black/60">
-                        <component :is="iconFor(a)" class="h-5 w-5" />
-                        <span class="line-clamp-2 break-all">{{ a.originalName || `Archivo ${a.position}` }}</span>
-                      </span>
-                    </button>
-                    <div
-                      v-if="!phase.items.length"
-                      class="grid aspect-square place-items-center rounded-lg border-[1.5px] border-dashed border-harbor-gray text-[10px] font-semibold text-harbor-black/40"
-                    >
-                      Sin archivos
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+              {{ t.label }}
+              <span
+                v-if="t.key === 'bitacora' && events.length"
+                class="rounded-full bg-harbor-surface-gray px-1.5 text-[11px] text-harbor-black/60"
+              >
+                {{ events.length }}
+              </span>
+            </button>
           </div>
 
-          <MaintenanceAttachmentsModal
-            v-model:open="viewerOpen"
-            :request="request"
-            :initial-id="viewerInitialId"
-          />
+          <!-- Cuerpo -->
+          <div class="flex-1 overflow-y-auto px-5 py-4">
+            <MaintenanceRequestSummary
+              v-show="tab === 'resumen'"
+              :request="request"
+              :detail="detail?.id === request.id ? detail : null"
+              :detail-loading="detailLoading"
+              :detail-error="detailError"
+              :now="now"
+            />
+            <MaintenanceRequestTimeline
+              v-if="tab === 'bitacora'"
+              :events="events"
+              :loading="eventsLoading"
+              :error="eventsError"
+              @retry="loadEvents(request.id)"
+            />
+          </div>
         </template>
       </DialogContent>
     </DialogPortal>

@@ -4,14 +4,18 @@ import { useAuthStore } from '~/stores/auth'
 import {
   buildMaintenanceQuery,
   normalizeMaintenanceAttachment,
+  normalizeMaintenanceEvent,
   normalizeMaintenanceRequest,
+  normalizeMaintenanceRequestDetail,
   normalizeMaintenanceStaff,
 } from '~/lib/maintenanceMappers'
 import { CLOSED_STATUSES, OPEN_STATUSES } from '~/types/maintenance'
 import type {
   MaintenanceAttachment,
+  MaintenanceEvent,
   MaintenanceFilters,
   MaintenanceRequest,
+  MaintenanceRequestDetail,
   MaintenanceStaff,
 } from '~/types/maintenance'
 
@@ -54,12 +58,14 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
 
   // ─── Computed ─────────────────────────────────────────────────────────────
   /**
-   * La sesion no trae el id del usuario: se busca por nombre en /staff/users.
-   * Es el mismo nombre que arma el backend en assigned_user_name.
+   * id del usuario en sesion. Las sesiones iniciadas antes de que el login
+   * devolviera el id no lo tienen: en ese caso se busca por nombre en
+   * /staff/users (es el mismo nombre que arma el backend en assigned_user_name).
    */
   const myUserId = computed<number | null>(() => {
     const user = useAuthStore().user
     if (!user) return null
+    if (typeof user.id === 'number') return user.id
     const myName = fold(`${user.first_name} ${user.last_name}`)
     const matches = staff.value.filter(s => fold(s.name) === myName)
     return matches.length === 1 ? matches[0].id : null
@@ -179,6 +185,38 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     }
   }
 
+  /** Detalle con datos personales: no se guarda en el store, solo lo usa el panel. */
+  async function fetchDetail(requestId: number): Promise<MaintenanceRequestDetail> {
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
+        headers: ctx.headers,
+      })
+      return normalizeMaintenanceRequestDetail(data)
+    } catch (err: any) {
+      console.error('Error cargando el detalle de la solicitud:', err)
+      throw new Error(errorMessage(err, 'Error al cargar el detalle de la solicitud'))
+    }
+  }
+
+  /** Bitacora en orden cronologico (la mas antigua primero), como la entrega el backend. */
+  async function fetchEvents(requestId: number): Promise<MaintenanceEvent[]> {
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests/${requestId}/events`, {
+        headers: ctx.headers,
+      })
+      return data.map(normalizeMaintenanceEvent)
+    } catch (err: any) {
+      console.error('Error cargando la bitacora:', err)
+      throw new Error(errorMessage(err, 'Error al cargar la bitacora'))
+    }
+  }
+
   return {
     // State
     openRequests,
@@ -200,5 +238,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     setFilters,
     resetFilters,
     fetchAttachments,
+    fetchDetail,
+    fetchEvents,
   }
 })

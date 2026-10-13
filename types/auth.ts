@@ -1,4 +1,6 @@
 export interface User {
+  /** Opcional: las sesiones guardadas antes de que el login lo devolviera no lo tienen. */
+  id?: number
   username: string
   role: string
   first_name: string
@@ -14,6 +16,7 @@ export interface LoginPayload {
 export interface LoginResponse {
   status: string
   access_token: string
+  id: number
   token_type: string
   username: string
   role: string

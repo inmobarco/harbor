@@ -50,5 +50,7 @@ export function useMaintenance() {
     setFilters: store.setFilters,
     resetFilters: store.resetFilters,
     fetchAttachments: store.fetchAttachments,
+    fetchDetail: store.fetchDetail,
+    fetchEvents: store.fetchEvents,
   }
 }

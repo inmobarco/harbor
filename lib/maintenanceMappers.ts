@@ -1,7 +1,9 @@
 import type {
   MaintenanceAttachment,
+  MaintenanceEvent,
   MaintenanceFilters,
   MaintenanceRequest,
+  MaintenanceRequestDetail,
   MaintenanceStaff,
 } from '~/types/maintenance'
 
@@ -50,6 +52,67 @@ export function normalizeMaintenanceRequest(raw: any): MaintenanceRequest {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     isActive: raw.is_active !== false,
+  }
+}
+
+/** available_days puede llegar como arreglo (text[]) o como texto separado por comas. */
+function stringList(value: any): string[] {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean)
+  if (typeof value === 'string') return value.split(',').map(v => v.trim()).filter(Boolean)
+  return []
+}
+
+/** jsonb: el backend ya lo convierte a objeto, pero se tolera que llegue como texto. */
+function jsonValue(value: any): any {
+  if (typeof value !== 'string') return value ?? null
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
+export function normalizeMaintenanceRequestDetail(raw: any): MaintenanceRequestDetail {
+  const description = str(raw.description)
+  return {
+    ...normalizeMaintenanceRequest({
+      ...raw,
+      // El detalle no trae el recorte del listado: se arma igual para no romper la vista
+      description_preview: raw.description_preview ?? description?.slice(0, 160) ?? null,
+    }),
+    submissionId: str(raw.submission_id),
+    reporterDocument: str(raw.reporter_document),
+    reporterEmail: str(raw.reporter_email),
+    categoryId: raw.category_id != null ? Number(raw.category_id) : null,
+    subcategoryId: raw.subcategory_id != null ? Number(raw.subcategory_id) : null,
+    description,
+    availableDays: stringList(raw.available_days),
+    timeSlot: str(raw.time_slot),
+    availabilityNotes: str(raw.availability_notes),
+    archivePrefix: str(raw.archive_prefix),
+    consentAccepted: raw.consent_accepted === true,
+    consentPolicyVersion: str(raw.consent_policy_version),
+    consentAcceptedAt: raw.consent_accepted_at ?? null,
+    consentIp: str(raw.consent_ip),
+    consentUserAgent: str(raw.consent_user_agent),
+    rawPayload: jsonValue(raw.raw_payload),
+  }
+}
+
+export function normalizeMaintenanceEvent(raw: any): MaintenanceEvent {
+  const metadata = jsonValue(raw.metadata)
+  return {
+    id: Number(raw.id),
+    requestId: Number(raw.request_id),
+    eventType: String(raw.event_type ?? ''),
+    fromStatus: str(raw.from_status),
+    toStatus: str(raw.to_status),
+    note: str(raw.note),
+    metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
+    actorUserId: raw.actor_user_id != null ? Number(raw.actor_user_id) : null,
+    actorLabel: str(raw.actor_label),
+    actorName: str(raw.actor_name) ?? str(raw.actor_label),
+    createdAt: raw.created_at,
   }
 }
 

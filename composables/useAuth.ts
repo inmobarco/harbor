@@ -19,6 +19,7 @@ export function useAuth() {
       })
 
       authStore.setSession(data.access_token, {
+        id: data.id,
         username: data.username,
         role: data.role,
         first_name: data.first_name,

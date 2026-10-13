@@ -4,6 +4,8 @@ import {
   SLA_STATUSES,
 } from '~/types/maintenance'
 import type {
+  EventKind,
+  MaintenanceEvent,
   MaintenanceFilters,
   MaintenancePriority,
   MaintenanceRequest,
@@ -125,4 +127,23 @@ export function formatDate(value: string | null): string {
   if (!value) return '—'
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? value : dateFormat.format(d)
+}
+
+/**
+ * Clasifica un evento para los filtros de la bitacora. Se apoya en los campos
+ * y no solo en event_type, para no depender de cada nombre que use el backend.
+ */
+export function eventKind(e: MaintenanceEvent): EventKind {
+  if (e.fromStatus || e.toStatus) return 'status'
+  if (/note|nota|comment/i.test(e.eventType)) return 'note'
+  if (e.actorUserId === null) return 'system'
+  return 'other'
+}
+
+/** Metadata plana como pares "clave: valor" legibles; ignora objetos anidados. */
+export function metadataEntries(metadata: Record<string, unknown> | null): { key: string; value: string }[] {
+  if (!metadata) return []
+  return Object.entries(metadata)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '' && typeof v !== 'object')
+    .map(([k, v]) => ({ key: humanize(k), value: typeof v === 'boolean' ? (v ? 'Si' : 'No') : String(v) }))
 }

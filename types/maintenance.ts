@@ -180,3 +180,47 @@ export function previewKind(contentType: string | null): AttachmentPreviewKind |
   if (ct.startsWith('audio/')) return 'audio'
   return null
 }
+
+/**
+ * GET /staff/maintenance/requests/{id}: todo lo del listado mas los datos
+ * personales, la disponibilidad y la evidencia de consentimiento.
+ */
+export interface MaintenanceRequestDetail extends MaintenanceRequest {
+  submissionId: string | null
+  reporterDocument: string | null
+  reporterEmail: string | null
+  categoryId: number | null
+  subcategoryId: number | null
+  /** Descripcion completa (el listado solo trae 160 caracteres). */
+  description: string | null
+  availableDays: string[]
+  timeSlot: string | null
+  availabilityNotes: string | null
+  archivePrefix: string | null
+  consentAccepted: boolean
+  consentPolicyVersion: string | null
+  consentAcceptedAt: string | null
+  consentIp: string | null
+  consentUserAgent: string | null
+  /** Payload original del formulario, tal como llego. */
+  rawPayload: unknown
+}
+
+/** Evento de GET /staff/maintenance/requests/{id}/events. */
+export interface MaintenanceEvent {
+  id: number
+  requestId: number
+  eventType: string
+  fromStatus: string | null
+  toStatus: string | null
+  note: string | null
+  metadata: Record<string, unknown> | null
+  actorUserId: number | null
+  actorLabel: string | null
+  /** Nombre del usuario, o la etiqueta del sistema (web, n8n, sistema). */
+  actorName: string | null
+  createdAt: string
+}
+
+/** Agrupacion de la bitacora para los filtros. */
+export type EventKind = 'status' | 'note' | 'system' | 'other'
