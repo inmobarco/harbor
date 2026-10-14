@@ -39,7 +39,8 @@ function togglePriority(p: MaintenancePriority) {
 }
 
 function toggleAssignee(value: AssigneeFilter) {
-  setFilters({ assignee: filters.value.assignee === value ? null : value })
+  const current = filters.value.assignees
+  setFilters({ assignees: current.includes(value) ? current.filter(a => a !== value) : [...current, value] })
 }
 
 /** "Mias" ya cubre al usuario actual: no repetirlo con su nombre. */
@@ -47,7 +48,7 @@ const otherAssignees = computed(() => activeAssignees.value.filter(a => a.id !==
 
 const hasFilters = computed(() =>
   !!filters.value.q || filters.value.priority.length > 0
-  || filters.value.assignee !== null || filters.value.city !== null || filters.value.quick !== null
+  || filters.value.assignees.length > 0 || filters.value.city !== null || filters.value.quick !== null
 )
 
 function clear() {
@@ -93,7 +94,7 @@ function firstName(name: string) {
         v-if="myUserId !== null"
         type="button"
         class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
-        :class="chipClass(filters.assignee === myUserId)"
+        :class="chipClass(filters.assignees.includes(myUserId))"
         @click="toggleAssignee(myUserId)"
       >
         Mias
@@ -101,7 +102,7 @@ function firstName(name: string) {
       <button
         type="button"
         class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
-        :class="chipClass(filters.assignee === 'none')"
+        :class="chipClass(filters.assignees.includes('none'))"
         @click="toggleAssignee('none')"
       >
         Sin asignar
@@ -111,7 +112,7 @@ function firstName(name: string) {
         :key="a.id"
         type="button"
         class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
-        :class="chipClass(filters.assignee === a.id)"
+        :class="chipClass(filters.assignees.includes(a.id))"
         :title="a.name"
         @click="toggleAssignee(a.id)"
       >

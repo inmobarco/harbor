@@ -9,6 +9,7 @@ import {
   normalizeMaintenanceRequestDetail,
   normalizeMaintenanceStaff,
 } from '~/lib/maintenanceMappers'
+import { withAutoAssign } from '~/lib/maintenanceView'
 import { CLOSED_STATUSES, OPEN_STATUSES } from '~/types/maintenance'
 import type {
   MaintenanceAttachment,
@@ -33,7 +34,7 @@ function errorMessage(err: any, fallback: string): string {
 }
 
 function emptyFilters(): MaintenanceFilters {
-  return { q: '', priority: [], assignee: null, city: null, quick: null }
+  return { q: '', priority: [], assignees: [], city: null, quick: null }
 }
 
 function fold(value: string): string {
@@ -57,6 +58,11 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
 
   const staff = ref<MaintenanceStaff[]>([])
   const filters = ref<MaintenanceFilters>(emptyFilters())
+  /**
+   * La vista por defecto ("Mias" + "Sin asignar") se aplica una sola vez por
+   * sesion: si la persona cambia los filtros y vuelve a la pagina, se respetan.
+   */
+  const defaultViewApplied = ref(false)
 
   // Evita que una respuesta lenta pise a una mas reciente al cambiar filtros
   let closedSeq = 0
@@ -170,6 +176,13 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     filters.value = emptyFilters()
   }
 
+  /** De entrada solo lo propio y lo que nadie ha tomado. Requiere conocer el id. */
+  function applyDefaultView() {
+    if (defaultViewApplied.value || myUserId.value === null) return
+    filters.value = { ...filters.value, assignees: [myUserId.value, 'none'] }
+    defaultViewApplied.value = true
+  }
+
   /**
    * No se cachea: las URL firmadas caducan a los 15 minutos, asi que cada
    * apertura (o renovacion) vuelve a pedirlas.
@@ -261,11 +274,14 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     const ctx = requestContext()
     if (!ctx) throw new Error('No hay sesion activa')
 
+    const current = [...openRequests.value, ...closedRequests.value].find(r => r.id === requestId)
+    const body = withAutoAssign(payload, current ?? null, myUserId.value)
+
     try {
       const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
         method: 'PATCH',
         headers: ctx.headers,
-        body: payload,
+        body,
       })
       const updated = normalizeMaintenanceRequestDetail(data)
       replaceRequest(toListRow(updated))
@@ -306,6 +322,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     closedHasMore,
     staff,
     filters,
+    defaultViewApplied,
     // Computed
     myUserId,
     // Actions
@@ -314,6 +331,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     fetchStaff,
     setFilters,
     resetFilters,
+    applyDefaultView,
     fetchAttachments,
     fetchDetail,
     fetchEvents,

@@ -7,8 +7,10 @@ import {
   responsiblePartyLabel,
 } from '~/types/maintenance'
 import type {
+  AssigneeFilter,
   EventKind,
   MaintenanceEvent,
+  MaintenanceRequestUpdate,
   MaintenanceFilters,
   MaintenancePriority,
   MaintenanceRequest,
@@ -86,11 +88,16 @@ export function matchesSearch(r: MaintenanceRequest, q: string): boolean {
   return fold(haystack).includes(term)
 }
 
+/** Vacio = todos. 'none' incluye las que no tienen responsable. */
+export function matchesAssignees(r: MaintenanceRequest, assignees: AssigneeFilter[]): boolean {
+  if (!assignees.length) return true
+  return assignees.includes(r.assignedUserId ?? 'none')
+}
+
 export function matchesFilters(r: MaintenanceRequest, f: MaintenanceFilters, now: number): boolean {
   if (!matchesSearch(r, f.q)) return false
   if (f.priority.length && !f.priority.includes(r.priority as MaintenancePriority)) return false
-  if (f.assignee === 'none' && r.assignedUserId !== null) return false
-  if (typeof f.assignee === 'number' && r.assignedUserId !== f.assignee) return false
+  if (!matchesAssignees(r, f.assignees)) return false
   if (f.city && r.city !== f.city) return false
   if (f.quick) {
     const quick = QUICK_FILTERS.find(q => q.key === f.quick)
@@ -213,4 +220,19 @@ export function describeEvent(
     return { title: FIELD_LABELS[field] ?? humanize(field), detail: change + reason }
   }
   return null
+}
+
+/**
+ * Quien hace un cambio sobre una solicitud sin responsable la toma: se agrega
+ * assigned_user_id al PATCH. Si el cambio ya elige responsable (incluso
+ * "sin asignar"), se respeta esa eleccion.
+ */
+export function withAutoAssign(
+  payload: MaintenanceRequestUpdate,
+  current: MaintenanceRequest | null,
+  myUserId: number | null,
+): MaintenanceRequestUpdate {
+  if (!current || current.assignedUserId !== null || myUserId === null) return payload
+  if ('assigned_user_id' in payload) return payload
+  return { ...payload, assigned_user_id: myUserId }
 }

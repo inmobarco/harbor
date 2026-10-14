@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useNow } from '@vueuse/core'
 import { ArrowRight, Columns3, List, RefreshCw } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
-import { matchesFilters } from '~/lib/maintenanceView'
+import { matchesAssignees, matchesFilters } from '~/lib/maintenanceView'
 import type { MaintenanceStatus, QuickFilterKey } from '~/types/maintenance'
 
 definePageMeta({ layout: 'default' })
@@ -11,7 +11,7 @@ definePageMeta({ layout: 'default' })
 const {
   openRequests, openLoading, openError, openTruncated,
   closedRequests, closedLoading, closedError, closedHasMore,
-  filters, setFilters, fetchOpen, fetchClosed, fetchStaff,
+  filters, setFilters, fetchOpen, fetchClosed, fetchStaff, myUserId, applyDefaultView,
 } = useMaintenance()
 
 // La antiguedad y los plazos se recalculan cada minuto sin volver a pedir datos
@@ -28,6 +28,15 @@ onMounted(() => {
   fetchStaff()
 })
 
+/**
+ * Los indicadores cuentan dentro del filtro de responsable (por defecto "Mias"
+ * + "Sin asignar"), para que el numero coincida con lo que se ve al hacer clic.
+ * La busqueda, la prioridad y la ciudad no los afectan.
+ */
+const scopedOpen = computed(() =>
+  openRequests.value.filter(r => matchesAssignees(r, filters.value.assignees))
+)
+
 const filteredOpen = computed(() =>
   openRequests.value.filter(r => matchesFilters(r, filters.value, now.value))
 )
@@ -40,10 +49,24 @@ const closedVisible = computed(() =>
 // Los filtros de las cerradas los aplica el servidor: recargar desde la primera
 // pagina cuando cambian. La busqueda ya llega con debounce desde los filtros.
 watch(
-  () => [closedVisible.value, filters.value.q, filters.value.priority, filters.value.assignee, filters.value.city] as const,
+  () => [closedVisible.value, filters.value.q, filters.value.priority, filters.value.assignees, filters.value.city] as const,
   ([visible]) => { if (visible) fetchClosed({ reset: true }) },
   { deep: true },
 )
+
+/**
+ * La API solo filtra por un responsable a la vez. Con varios (p. ej. "Mias" +
+ * "Sin asignar") se piden sin ese filtro y se aplica aqui.
+ */
+const filteredClosed = computed(() =>
+  filters.value.assignees.length > 1
+    ? closedRequests.value.filter(r => matchesAssignees(r, filters.value.assignees))
+    : closedRequests.value
+)
+
+// Vista por defecto: "Mias" + "Sin asignar". El id puede llegar despues del
+// montaje (sesiones antiguas lo resuelven con /staff/users).
+watch(myUserId, () => applyDefaultView(), { immediate: true })
 
 const selectedRequest = computed(() =>
   openRequests.value.find(r => r.id === selectedId.value)
@@ -131,7 +154,7 @@ async function refresh() {
     </div>
 
     <MaintenanceStatsStrip
-      :requests="openRequests"
+      :requests="scopedOpen"
       :now="now"
       :active="filters.quick"
       @toggle="toggleQuick"
@@ -172,7 +195,7 @@ async function refresh() {
       v-else
       v-model:include-closed="includeClosed"
       :open-requests="filteredOpen"
-      :closed-requests="closedRequests"
+      :closed-requests="filteredClosed"
       :now="now"
       :selected-id="selectedId"
       :loading="openLoading"

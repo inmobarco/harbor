@@ -50,6 +50,7 @@ export function useMaintenance() {
     fetchStaff: store.fetchStaff,
     setFilters: store.setFilters,
     resetFilters: store.resetFilters,
+    applyDefaultView: store.applyDefaultView,
     fetchAttachments: store.fetchAttachments,
     fetchDetail: store.fetchDetail,
     fetchEvents: store.fetchEvents,

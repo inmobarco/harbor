@@ -129,13 +129,14 @@ export const BOARD_COLUMNS: {
 
 export type QuickFilterKey = 'nuevas24' | 'urgentes' | 'sinAsignar' | 'revision' | 'vencidas'
 
-/** Responsable: id de usuario, 'none' = sin asignar, null = todos. */
-export type AssigneeFilter = number | 'none' | null
+/** Responsable en el filtro: id de usuario o 'none' = sin asignar. */
+export type AssigneeFilter = number | 'none'
 
 export interface MaintenanceFilters {
   q: string
   priority: MaintenancePriority[]
-  assignee: AssigneeFilter
+  /** Se combinan con O. Vacio = todos los responsables. */
+  assignees: AssigneeFilter[]
   /** Ciudad exacta, como la devuelve la API. null = todas. */
   city: string | null
   /** Accesos rapidos de los indicadores. Solo aplican a solicitudes en curso. */

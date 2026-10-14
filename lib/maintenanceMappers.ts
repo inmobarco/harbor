@@ -137,11 +137,13 @@ export function normalizeMaintenanceAttachment(raw: any): MaintenanceAttachment 
 /**
  * Arma el query string: listas como CSV y solo los filtros activos.
  * Los accesos rapidos (quick) no tienen equivalente en el backend: se aplican
- * en el cliente y por eso no se envian.
+ * en el cliente y por eso no se envian. Tampoco varios responsables a la vez:
+ * la API acepta un assigned_user_id o unassigned, no ambos. Con mas de uno no
+ * se envia nada y el filtro lo aplica el cliente.
  */
 export function buildMaintenanceQuery(
   statuses: readonly string[],
-  filters: Pick<MaintenanceFilters, 'q' | 'priority' | 'assignee' | 'city'> | null,
+  filters: Pick<MaintenanceFilters, 'q' | 'priority' | 'assignees' | 'city'> | null,
   limit: number,
   offset: number,
 ): Record<string, string | number | boolean> {
@@ -151,8 +153,11 @@ export function buildMaintenanceQuery(
   if (filters.priority.length) query.priority = filters.priority.join(',')
   if (filters.q.trim()) query.q = filters.q.trim()
   if (filters.city) query.city = filters.city
-  if (filters.assignee === 'none') query.unassigned = true
-  else if (typeof filters.assignee === 'number') query.assigned_user_id = filters.assignee
+  if (filters.assignees.length === 1) {
+    const [only] = filters.assignees
+    if (only === 'none') query.unassigned = true
+    else query.assigned_user_id = only
+  }
   return query
 }
 

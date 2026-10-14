@@ -4,7 +4,7 @@ import { QUICK_FILTERS } from '~/lib/maintenanceView'
 import type { MaintenanceRequest, QuickFilterKey } from '~/types/maintenance'
 
 const props = defineProps<{
-  /** Siempre las abiertas sin filtrar: los indicadores no dependen de la busqueda. */
+  /** Abiertas dentro del filtro de responsable; la busqueda y demas filtros no las afectan. */
   requests: MaintenanceRequest[]
   now: number
   active: QuickFilterKey | null
