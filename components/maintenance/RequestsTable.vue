@@ -122,6 +122,7 @@ function onRowKey(e: KeyboardEvent, id: number) {
               </td>
               <td class="px-4 py-2.5 min-w-[200px]">
                 <p>{{ locationLabel(r) || r.propertyAddress || '—' }}</p>
+                <p v-if="r.city" class="text-xs text-harbor-black/50 mt-0.5">{{ r.city }}</p>
                 <p v-if="r.contractNumber" class="text-xs text-harbor-black/50 mt-0.5 font-mono">{{ r.contractNumber }}</p>
               </td>
               <td class="px-4 py-2.5 min-w-[150px]">

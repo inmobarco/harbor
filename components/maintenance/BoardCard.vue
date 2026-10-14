@@ -10,9 +10,17 @@ const props = defineProps<{
   selected?: boolean
   /** La columna agrupa varios estados: mostrar cual es el de esta tarjeta. */
   showStatus?: boolean
+  dragging?: boolean
 }>()
 
-const emit = defineEmits<{ select: [] }>()
+const emit = defineEmits<{ select: []; dragstart: [event: DragEvent]; dragend: [] }>()
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    emit('select')
+  }
+}
 
 const sla = computed(() => slaState(props.request, props.now))
 const age = computed(() => formatAge(ageHours(props.request, props.now)))
@@ -26,13 +34,21 @@ const AGE_CLASSES = {
 </script>
 
 <template>
-  <button
-    type="button"
-    class="w-full text-left flex flex-col gap-1.5 rounded-lg border bg-harbor-pure-white px-3 py-2.5 shadow-sm transition-colors"
-    :class="selected
-      ? 'border-harbor-blue ring-2 ring-harbor-blue/20'
-      : 'border-harbor-gray hover:border-harbor-blue'"
+  <!-- div y no button: Firefox no arrastra bien los <button draggable> -->
+  <div
+    role="button"
+    tabindex="0"
+    draggable="true"
+    :aria-label="`${request.ticket} ${request.categoryLabel}`"
+    class="w-full cursor-grab text-left flex flex-col gap-1.5 rounded-lg border bg-harbor-pure-white px-3 py-2.5 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-harbor-blue"
+    :class="[
+      selected ? 'border-harbor-blue ring-2 ring-harbor-blue/20' : 'border-harbor-gray hover:border-harbor-blue',
+      dragging ? 'opacity-40' : '',
+    ]"
     @click="emit('select')"
+    @keydown="onKeydown"
+    @dragstart="emit('dragstart', $event)"
+    @dragend="emit('dragend')"
   >
     <div class="flex items-center justify-between gap-2">
       <span class="font-mono text-[11px] font-semibold text-harbor-black/50">{{ request.ticket }}</span>
@@ -42,7 +58,9 @@ const AGE_CLASSES = {
     <p class="text-sm font-bold leading-snug text-harbor-black">
       {{ request.categoryLabel }}<span v-if="request.subcategoryLabel" class="font-medium text-harbor-black/60"> · {{ request.subcategoryLabel }}</span>
     </p>
-    <p v-if="location" class="text-xs text-harbor-black/60">{{ location }}</p>
+    <p v-if="location || request.city" class="text-xs text-harbor-black/60">
+      {{ location }}<span v-if="request.city" class="text-harbor-black/40">{{ location ? ' · ' : '' }}{{ request.city }}</span>
+    </p>
 
     <div
       v-if="showStatus || request.isHappeningNow || request.needsReview || request.attachmentCount"
@@ -75,5 +93,5 @@ const AGE_CLASSES = {
       </span>
       <MaintenanceAssigneeAvatar :user-id="request.assignedUserId" :name="request.assignedUserName" />
     </div>
-  </button>
+  </div>
 </template>

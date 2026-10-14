@@ -33,6 +33,7 @@ export function normalizeMaintenanceRequest(raw: any): MaintenanceRequest {
     contractNumber: str(raw.contract_number),
     contractVerified: raw.contract_verified === true,
     propertyAddress: str(raw.property_address),
+    city: str(raw.city),
     unit: str(raw.unit),
     aptNum: str(raw.apt_num),
     categoryCode: String(raw.category_code ?? ''),
@@ -140,7 +141,7 @@ export function normalizeMaintenanceAttachment(raw: any): MaintenanceAttachment 
  */
 export function buildMaintenanceQuery(
   statuses: readonly string[],
-  filters: Pick<MaintenanceFilters, 'q' | 'priority' | 'assignee'> | null,
+  filters: Pick<MaintenanceFilters, 'q' | 'priority' | 'assignee' | 'city'> | null,
   limit: number,
   offset: number,
 ): Record<string, string | number | boolean> {
@@ -149,6 +150,7 @@ export function buildMaintenanceQuery(
   if (!filters) return query
   if (filters.priority.length) query.priority = filters.priority.join(',')
   if (filters.q.trim()) query.q = filters.q.trim()
+  if (filters.city) query.city = filters.city
   if (filters.assignee === 'none') query.unassigned = true
   else if (typeof filters.assignee === 'number') query.assigned_user_id = filters.assignee
   return query

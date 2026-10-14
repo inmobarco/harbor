@@ -39,6 +39,7 @@ export function useMaintenance() {
     closedError: computed(() => store.closedError),
     closedHasMore: computed(() => store.closedHasMore),
     filters: computed(() => store.filters),
+    staff: computed(() => store.staff),
     // Derived
     myUserId: computed(() => store.myUserId),
     activeAssignees,
@@ -52,5 +53,7 @@ export function useMaintenance() {
     fetchAttachments: store.fetchAttachments,
     fetchDetail: store.fetchDetail,
     fetchEvents: store.fetchEvents,
+    updateRequest: store.updateRequest,
+    addNote: store.addNote,
   }
 }

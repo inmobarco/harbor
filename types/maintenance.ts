@@ -20,6 +20,20 @@ export const MAINTENANCE_PRIORITIES = [
   { value: 'baja', label: 'Baja' },
 ] as const
 
+/** Quien asume el costo. Debe coincidir con el CHECK de maintenance.request.responsible_party. */
+export const RESPONSIBLE_PARTIES = [
+  { value: 'propietario', label: 'Propietario' },
+  { value: 'arrendatario', label: 'Arrendatario' },
+  { value: 'inmobiliaria', label: 'Inmobiliaria' },
+] as const
+
+export type ResponsibleParty = typeof RESPONSIBLE_PARTIES[number]['value']
+
+export function responsiblePartyLabel(value: string | null): string {
+  if (!value) return 'Sin definir'
+  return RESPONSIBLE_PARTIES.find(p => p.value === value)?.label ?? value
+}
+
 export type MaintenanceStatus = typeof MAINTENANCE_STATUSES[number]['value']
 export type MaintenancePriority = typeof MAINTENANCE_PRIORITIES[number]['value']
 
@@ -49,6 +63,7 @@ export interface MaintenanceRequest {
   contractNumber: string | null
   contractVerified: boolean
   propertyAddress: string | null
+  city: string | null
   /** Nombre de la unidad / conjunto residencial. */
   unit: string | null
   aptNum: string | null
@@ -121,6 +136,8 @@ export interface MaintenanceFilters {
   q: string
   priority: MaintenancePriority[]
   assignee: AssigneeFilter
+  /** Ciudad exacta, como la devuelve la API. null = todas. */
+  city: string | null
   /** Accesos rapidos de los indicadores. Solo aplican a solicitudes en curso. */
   quick: QuickFilterKey | null
 }
@@ -224,3 +241,18 @@ export interface MaintenanceEvent {
 
 /** Agrupacion de la bitacora para los filtros. */
 export type EventKind = 'status' | 'note' | 'system' | 'other'
+
+/**
+ * Cuerpo de PATCH /staff/maintenance/requests/{id}. Solo se envia lo que
+ * cambia. Un cambio de estado con note deja la nota en el mismo evento.
+ */
+export interface MaintenanceRequestUpdate {
+  status?: MaintenanceStatus
+  priority?: MaintenancePriority
+  assigned_user_id?: number | null
+  responsible_party?: ResponsibleParty | null
+  needs_review?: boolean
+  review_reason?: string | null
+  /** Obligatoria al cancelar. */
+  note?: string
+}

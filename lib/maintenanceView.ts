@@ -1,7 +1,10 @@
 import {
+  CLOSED_STATUSES,
   OPEN_STATUSES,
   SLA_HOURS,
   SLA_STATUSES,
+  priorityLabel,
+  responsiblePartyLabel,
 } from '~/types/maintenance'
 import type {
   EventKind,
@@ -78,7 +81,7 @@ export function matchesSearch(r: MaintenanceRequest, q: string): boolean {
   if (!term) return true
   const haystack = [
     r.ticket, r.reporterName, r.unit, r.aptNum, r.categoryLabel, r.subcategoryLabel,
-    r.contractNumber, r.propertyAddress,
+    r.contractNumber, r.propertyAddress, r.city,
   ].filter(Boolean).join(' ')
   return fold(haystack).includes(term)
 }
@@ -88,6 +91,7 @@ export function matchesFilters(r: MaintenanceRequest, f: MaintenanceFilters, now
   if (f.priority.length && !f.priority.includes(r.priority as MaintenancePriority)) return false
   if (f.assignee === 'none' && r.assignedUserId !== null) return false
   if (typeof f.assignee === 'number' && r.assignedUserId !== f.assignee) return false
+  if (f.city && r.city !== f.city) return false
   if (f.quick) {
     const quick = QUICK_FILTERS.find(q => q.key === f.quick)
     if (quick && !quick.test(r, now)) return false
@@ -146,4 +150,67 @@ export function metadataEntries(metadata: Record<string, unknown> | null): { key
   return Object.entries(metadata)
     .filter(([, v]) => v !== null && v !== undefined && v !== '' && typeof v !== 'object')
     .map(([k, v]) => ({ key: humanize(k), value: typeof v === 'boolean' ? (v ? 'Si' : 'No') : String(v) }))
+}
+
+/** cerrada y cancelada son finales: el backend rechaza cambiarles el estado. */
+export function isFinal(r: MaintenanceRequest): boolean {
+  return CLOSED_STATUSES.includes(r.status as MaintenanceStatus)
+}
+
+/** Siguiente paso habitual desde cada estado, para los botones del panel. */
+export const NEXT_STEPS: Partial<Record<MaintenanceStatus, { to: MaintenanceStatus; label: string }[]>> = {
+  recibida: [{ to: 'en_revision', label: 'Tomar y revisar' }],
+  en_revision: [
+    { to: 'programada', label: 'Programar visita' },
+    { to: 'esperando_aprobacion', label: 'Enviar a aprobacion' },
+  ],
+  esperando_aprobacion: [{ to: 'programada', label: 'Aprobada · programar' }],
+  programada: [{ to: 'en_ejecucion', label: 'Iniciar ejecucion' }],
+  en_ejecucion: [{ to: 'resuelta', label: 'Marcar resuelta' }],
+  resuelta: [{ to: 'cerrada', label: 'Cerrar solicitud' }],
+}
+
+/** Ciudades presentes en los datos, para el filtro. */
+export function distinctCities(requests: MaintenanceRequest[]): string[] {
+  const cities = new Set<string>()
+  for (const r of requests) if (r.city) cities.add(r.city)
+  return [...cities].sort((a, b) => a.localeCompare(b, 'es'))
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  priority: 'Prioridad',
+  responsible_party: 'A cargo de',
+  needs_review: 'Marca de revision',
+  review_reason: 'Motivo de revision',
+}
+
+function fieldValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'boolean') return value ? 'Si' : 'No'
+  if (field === 'priority') return priorityLabel(String(value))
+  if (field === 'responsible_party') return responsiblePartyLabel(String(value))
+  return String(value)
+}
+
+/**
+ * Texto legible para los eventos que genera el PATCH (asignacion y
+ * actualizacion). null para los demas: se muestran con su nota o metadata.
+ * userName traduce los ids de asignacion a nombres.
+ */
+export function describeEvent(
+  e: MaintenanceEvent,
+  userName: (id: number) => string,
+): { title: string; detail: string | null } | null {
+  const meta = e.metadata ?? {}
+  if (e.eventType === 'asignacion') {
+    const name = (v: unknown) => (typeof v === 'number' ? userName(v) : 'Sin asignar')
+    return { title: 'Responsable', detail: `${name(meta.from)} → ${name(meta.to)}` }
+  }
+  if (e.eventType === 'actualizacion' && typeof meta.field === 'string') {
+    const field = meta.field
+    const change = `${fieldValue(field, meta.from)} → ${fieldValue(field, meta.to)}`
+    const reason = field === 'needs_review' && meta.to === true && meta.reason ? ` · ${meta.reason}` : ''
+    return { title: FIELD_LABELS[field] ?? humanize(field), detail: change + reason }
+  }
+  return null
 }

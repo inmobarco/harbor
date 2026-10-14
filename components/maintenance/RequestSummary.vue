@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Button } from '~/components/ui/button'
+import { Input } from '~/components/ui/input'
 import {
   AlertTriangle, CheckCircle2, File as FileIcon, FileText, Film, Image as ImageIcon, Music, Trash2,
 } from 'lucide-vue-next'
 import {
   ageHours, formatAge, formatDate, humanize, locationLabel, slaHours, slaState,
 } from '~/lib/maintenanceView'
-import { ATTACHMENT_PHASES, previewKind } from '~/types/maintenance'
+import { ATTACHMENT_PHASES, RESPONSIBLE_PARTIES, previewKind, responsiblePartyLabel } from '~/types/maintenance'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import type {
-  MaintenanceAttachment, MaintenanceRequest, MaintenanceRequestDetail,
+  MaintenanceAttachment, MaintenanceRequest, MaintenanceRequestDetail, ResponsibleParty,
 } from '~/types/maintenance'
 
 const props = defineProps<{
@@ -18,7 +21,23 @@ const props = defineProps<{
   detailLoading?: boolean
   detailError?: string | null
   now: number
+  /** false en cerradas y canceladas. */
+  editable?: boolean
+  reviewSaving?: boolean
+  partySaving?: boolean
 }>()
+
+const emit = defineEmits<{
+  setReview: [payload: { needsReview: boolean; reason: string | null }]
+  setResponsibleParty: [value: ResponsibleParty | null]
+}>()
+
+// radix Select no admite value vacio: 'none' representa "sin definir"
+const NO_PARTY = 'none'
+
+function onResponsibleParty(value: any) {
+  emit('setResponsibleParty', value === NO_PARTY ? null : (value as ResponsibleParty))
+}
 
 const { fetchAttachments } = useMaintenance()
 
@@ -83,6 +102,22 @@ function iconFor(a: MaintenanceAttachment) {
   }
 }
 
+// ─── Marca de revision ──────────────────────────────────────────────────────
+const reviewFormOpen = ref(false)
+const reviewReason = ref('')
+
+watch(() => props.request.id, () => {
+  reviewFormOpen.value = false
+  reviewReason.value = ''
+})
+
+// Al guardar, el request cambia de needsReview: cerrar el formulario
+watch(() => props.request.needsReview, (flagged) => { if (flagged) reviewFormOpen.value = false })
+
+function submitReview() {
+  emit('setReview', { needsReview: true, reason: reviewReason.value.trim() || null })
+}
+
 // ─── Datos ──────────────────────────────────────────────────────────────────
 const sla = computed(() => slaState(r.value, props.now))
 
@@ -136,12 +171,43 @@ const SLA_TEXT = {
     </div>
 
     <div
-      v-if="r.needsReview"
+      v-if="request.needsReview"
       class="flex items-start gap-2 rounded-lg bg-harbor-warning/15 px-3 py-2.5 text-sm font-semibold text-amber-700"
     >
       <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" />
-      <span>{{ r.reviewReason || 'Marcada para revision' }}</span>
+      <span class="flex-1">{{ request.reviewReason || 'Marcada para revision' }}</span>
+      <Button
+        v-if="editable"
+        size="sm"
+        variant="outline"
+        class="h-7 shrink-0 bg-harbor-pure-white"
+        :disabled="reviewSaving"
+        @click="emit('setReview', { needsReview: false, reason: null })"
+      >
+        {{ reviewSaving ? 'Guardando...' : 'Marcar como revisada' }}
+      </Button>
     </div>
+    <template v-else-if="editable">
+      <form
+        v-if="reviewFormOpen"
+        class="flex items-center gap-2 rounded-lg border border-harbor-gray px-3 py-2"
+        @submit.prevent="submitReview"
+      >
+        <Input v-model="reviewReason" placeholder="Motivo de la revision (opcional)" class="h-8 flex-1" />
+        <Button type="submit" size="sm" class="h-8" :disabled="reviewSaving">
+          {{ reviewSaving ? 'Guardando...' : 'Marcar' }}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" class="h-8" @click="reviewFormOpen = false">Cancelar</Button>
+      </form>
+      <button
+        v-else
+        type="button"
+        class="inline-flex items-center gap-1 self-start text-xs font-bold text-amber-700 hover:underline"
+        @click="reviewFormOpen = true"
+      >
+        <AlertTriangle class="h-3.5 w-3.5" /> Marcar para revision
+      </button>
+    </template>
 
     <section>
       <h5 class="mb-2 text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">Descripcion del reportante</h5>
@@ -197,6 +263,10 @@ const SLA_TEXT = {
           <dd class="font-semibold text-harbor-black break-words">{{ r.propertyAddress || '—' }}</dd>
         </div>
         <div>
+          <dt class="text-xs font-semibold text-harbor-black/50">Ciudad</dt>
+          <dd class="font-semibold text-harbor-black">{{ r.city || '—' }}</dd>
+        </div>
+        <div>
           <dt class="text-xs font-semibold text-harbor-black/50">Ingreso al inmueble</dt>
           <dd class="font-semibold" :class="entryLabel.cls || 'text-harbor-black'">{{ entryLabel.text }}</dd>
         </div>
@@ -208,7 +278,24 @@ const SLA_TEXT = {
         </div>
         <div>
           <dt class="text-xs font-semibold text-harbor-black/50">A cargo de</dt>
-          <dd class="font-semibold text-harbor-black">{{ humanize(r.responsibleParty) }}</dd>
+          <dd v-if="!editable" class="font-semibold text-harbor-black">
+            {{ responsiblePartyLabel(request.responsibleParty) }}
+          </dd>
+          <dd v-else>
+            <Select
+              :model-value="request.responsibleParty ?? NO_PARTY"
+              :disabled="partySaving"
+              @update:model-value="onResponsibleParty"
+            >
+              <SelectTrigger class="mt-0.5 h-8 text-sm" aria-label="A cargo de">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NO_PARTY">Sin definir</SelectItem>
+                <SelectItem v-for="p in RESPONSIBLE_PARTIES" :key="p.value" :value="p.value">{{ p.label }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </dd>
         </div>
         <div>
           <dt class="text-xs font-semibold text-harbor-black/50">Antiguedad</dt>

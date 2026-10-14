@@ -4,7 +4,7 @@ import { useNow } from '@vueuse/core'
 import { ArrowRight, Columns3, List, RefreshCw } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import { matchesFilters } from '~/lib/maintenanceView'
-import type { QuickFilterKey } from '~/types/maintenance'
+import type { MaintenanceStatus, QuickFilterKey } from '~/types/maintenance'
 
 definePageMeta({ layout: 'default' })
 
@@ -40,7 +40,7 @@ const closedVisible = computed(() =>
 // Los filtros de las cerradas los aplica el servidor: recargar desde la primera
 // pagina cuando cambian. La busqueda ya llega con debounce desde los filtros.
 watch(
-  () => [closedVisible.value, filters.value.q, filters.value.priority, filters.value.assignee] as const,
+  () => [closedVisible.value, filters.value.q, filters.value.priority, filters.value.assignee, filters.value.city] as const,
   ([visible]) => { if (visible) fetchClosed({ reset: true }) },
   { deep: true },
 )
@@ -57,6 +57,22 @@ function select(requestId: number) {
 }
 
 watch(drawerOpen, (isOpen) => { if (!isOpen) selectedId.value = null })
+
+// ─── Mover tarjetas entre columnas ──────────────────────────────────────────
+const moveDialogOpen = ref(false)
+const moveRequestId = ref<number | null>(null)
+const moveOptions = ref<MaintenanceStatus[]>([])
+
+const moveRequest = computed(() =>
+  openRequests.value.find(r => r.id === moveRequestId.value) ?? null
+)
+
+/** Toda columna lleva a un estado: se confirma con nota opcional. */
+function onMove(requestId: number, statuses: MaintenanceStatus[]) {
+  moveRequestId.value = requestId
+  moveOptions.value = statuses
+  moveDialogOpen.value = true
+}
 
 function toggleQuick(key: QuickFilterKey) {
   setFilters({ quick: filters.value.quick === key ? null : key })
@@ -135,8 +151,12 @@ async function refresh() {
         :loading="openLoading"
         :error="openError"
         @select="select"
+        @move="onMove"
       />
-      <div class="flex justify-end">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-xs text-harbor-black/50">
+          Arrastra una tarjeta a otra columna para cambiar su estado. Cada cambio queda en la bitacora.
+        </p>
         <button
           type="button"
           class="inline-flex items-center gap-1 text-sm font-bold text-harbor-blue-dark hover:underline"
@@ -163,6 +183,13 @@ async function refresh() {
       :quick-active="filters.quick !== null"
       @select="select"
       @load-more-closed="fetchClosed({ reset: false })"
+    />
+
+    <MaintenanceStatusChangeDialog
+      v-model:open="moveDialogOpen"
+      :request="moveRequest"
+      :preset="moveOptions[0] ?? null"
+      :options="moveOptions"
     />
 
     <MaintenanceRequestDrawer

@@ -16,7 +16,9 @@ import type {
   MaintenanceFilters,
   MaintenanceRequest,
   MaintenanceRequestDetail,
+  MaintenanceRequestUpdate,
   MaintenanceStaff,
+  MaintenanceStatus,
 } from '~/types/maintenance'
 
 /** Tope del endpoint. El tablero trae todas las abiertas en una sola pagina. */
@@ -24,11 +26,14 @@ const OPEN_LIMIT = 500
 const CLOSED_PAGE_SIZE = 50
 
 function errorMessage(err: any, fallback: string): string {
-  return err?.data?.detail || err?.data?.message || err?.message || fallback
+  const detail = err?.data?.detail
+  // Errores de validacion de FastAPI: [{ loc, msg, type }, ...]
+  if (Array.isArray(detail)) return detail.map(d => d?.msg).filter(Boolean).join('. ') || fallback
+  return (typeof detail === 'string' && detail) || err?.data?.message || err?.message || fallback
 }
 
 function emptyFilters(): MaintenanceFilters {
-  return { q: '', priority: [], assignee: null, quick: null }
+  return { q: '', priority: [], assignee: null, city: null, quick: null }
 }
 
 function fold(value: string): string {
@@ -217,6 +222,78 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     }
   }
 
+  /**
+   * Las listas guardan solo los campos del listado: los datos personales del
+   * detalle (documento, correo, consentimiento) se quedan en el panel.
+   */
+  function toListRow(d: MaintenanceRequestDetail): MaintenanceRequest {
+    const {
+      submissionId, reporterDocument, reporterEmail, categoryId, subcategoryId, description,
+      availableDays, timeSlot, availabilityNotes, archivePrefix, consentAccepted,
+      consentPolicyVersion, consentAcceptedAt, consentIp, consentUserAgent, rawPayload,
+      ...row
+    } = d
+    return row
+  }
+
+  /**
+   * Coloca la version que devolvio el PATCH en la lista que le corresponde.
+   * Al pasar a cerrada o cancelada sale del tablero y entra a las cerradas.
+   */
+  function replaceRequest(updated: MaintenanceRequest) {
+    const isClosed = CLOSED_STATUSES.includes(updated.status as MaintenanceStatus)
+    const withoutOpen = openRequests.value.filter(r => r.id !== updated.id)
+    const withoutClosed = closedRequests.value.filter(r => r.id !== updated.id)
+    openRequests.value = isClosed ? withoutOpen : [updated, ...withoutOpen]
+    closedRequests.value = isClosed ? [updated, ...withoutClosed] : withoutClosed
+  }
+
+  /**
+   * PATCH de estado, prioridad, quien paga, responsable o marca de revision.
+   * El backend deja el evento en la bitacora en la misma transaccion y devuelve
+   * la solicitud completa (misma forma que el detalle), que sirve para la
+   * tarjeta y para el panel. Lanza el error con el mensaje del backend.
+   */
+  async function updateRequest(
+    requestId: number,
+    payload: MaintenanceRequestUpdate,
+  ): Promise<MaintenanceRequestDetail> {
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
+        method: 'PATCH',
+        headers: ctx.headers,
+        body: payload,
+      })
+      const updated = normalizeMaintenanceRequestDetail(data)
+      replaceRequest(toListRow(updated))
+      return updated
+    } catch (err: any) {
+      console.error('Error actualizando la solicitud:', err)
+      throw new Error(errorMessage(err, 'No se pudo actualizar la solicitud'))
+    }
+  }
+
+  /** Las notas son inmutables. Se permiten tambien en cerradas y canceladas. */
+  async function addNote(requestId: number, note: string): Promise<MaintenanceEvent> {
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}/notes`, {
+        method: 'POST',
+        headers: ctx.headers,
+        body: { note },
+      })
+      return normalizeMaintenanceEvent(data)
+    } catch (err: any) {
+      console.error('Error agregando la nota:', err)
+      throw new Error(errorMessage(err, 'No se pudo agregar la nota'))
+    }
+  }
+
   return {
     // State
     openRequests,
@@ -240,5 +317,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     fetchAttachments,
     fetchDetail,
     fetchEvents,
+    updateRequest,
+    addNote,
   }
 })

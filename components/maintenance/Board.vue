@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { compareForBoard } from '~/lib/maintenanceView'
 import { BOARD_COLUMNS } from '~/types/maintenance'
 import type { MaintenanceRequest, MaintenanceStatus } from '~/types/maintenance'
@@ -13,7 +13,53 @@ const props = defineProps<{
   error?: string | null
 }>()
 
-const emit = defineEmits<{ select: [requestId: number] }>()
+const emit = defineEmits<{
+  select: [requestId: number]
+  /** Tarjeta soltada en otra columna: el padre confirma el cambio de estado. */
+  move: [requestId: number, statuses: MaintenanceStatus[]]
+}>()
+
+// ─── Arrastrar y soltar (API nativa del navegador, sin dependencias) ────────
+const draggingId = ref<number | null>(null)
+const overColumn = ref<string | null>(null)
+
+function onDragStart(e: DragEvent, requestId: number) {
+  draggingId.value = requestId
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    // Firefox no inicia el arrastre si no hay datos
+    e.dataTransfer.setData('text/plain', String(requestId))
+  }
+}
+
+function onDragEnd() {
+  draggingId.value = null
+  overColumn.value = null
+}
+
+function onDragOver(e: DragEvent, colKey: string) {
+  if (draggingId.value === null) return
+  e.preventDefault()
+  overColumn.value = colKey
+}
+
+function onDragLeave(e: DragEvent, colKey: string) {
+  const related = e.relatedTarget as Node | null
+  if (overColumn.value === colKey && !(e.currentTarget as HTMLElement).contains(related)) {
+    overColumn.value = null
+  }
+}
+
+function onDrop(e: DragEvent, statuses: MaintenanceStatus[]) {
+  e.preventDefault()
+  const id = draggingId.value
+  onDragEnd()
+  if (id === null) return
+  const request = props.requests.find(r => r.id === id)
+  // Soltar en la misma columna no cambia nada
+  if (!request || statuses.includes(request.status as MaintenanceStatus)) return
+  emit('move', id, statuses)
+}
 
 const columns = computed(() =>
   BOARD_COLUMNS.map(col => {
@@ -40,8 +86,14 @@ const columns = computed(() =>
         <section
           v-for="col in columns"
           :key="col.key"
-          class="flex flex-col min-h-[240px] rounded-xl border border-harbor-gray/70 bg-harbor-neutral-white"
+          class="flex flex-col min-h-[240px] rounded-xl border transition-colors"
+          :class="overColumn === col.key
+            ? 'border-dashed border-harbor-blue bg-harbor-blue/10'
+            : 'border-harbor-gray/70 bg-harbor-neutral-white'"
           :aria-label="col.title"
+          @dragover="onDragOver($event, col.key)"
+          @dragleave="onDragLeave($event, col.key)"
+          @drop="onDrop($event, col.statuses)"
         >
           <header class="flex flex-col gap-1.5 px-3 pt-3 pb-2">
             <div class="flex items-center justify-between gap-2">
@@ -69,7 +121,10 @@ const columns = computed(() =>
               :now="now"
               :selected="r.id === selectedId"
               :show-status="col.statuses.length > 1"
+              :dragging="draggingId === r.id"
               @select="emit('select', r.id)"
+              @dragstart="onDragStart($event, r.id)"
+              @dragend="onDragEnd"
             />
             <div
               v-if="!col.items.length"

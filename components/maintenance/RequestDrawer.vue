@@ -4,10 +4,13 @@ import {
   DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle,
 } from 'reka-ui'
 import { X, XCircle } from 'lucide-vue-next'
-import { formatDate, locationLabel } from '~/lib/maintenanceView'
-import { STATUS_FLOW, statusLabel } from '~/types/maintenance'
+import { Button } from '~/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
+import { NEXT_STEPS, formatDate, isFinal, locationLabel } from '~/lib/maintenanceView'
+import { MAINTENANCE_PRIORITIES, STATUS_FLOW, statusLabel } from '~/types/maintenance'
 import type {
-  MaintenanceEvent, MaintenanceRequest, MaintenanceRequestDetail, MaintenanceStatus,
+  MaintenanceEvent, MaintenancePriority, MaintenanceRequest, MaintenanceRequestDetail,
+  MaintenanceRequestUpdate, MaintenanceStatus, ResponsibleParty,
 } from '~/types/maintenance'
 
 const props = defineProps<{
@@ -17,7 +20,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 
-const { fetchDetail, fetchEvents } = useMaintenance()
+const { fetchDetail, fetchEvents, updateRequest, staff } = useMaintenance()
 
 const tab = ref<'resumen' | 'bitacora'>('resumen')
 
@@ -72,6 +75,91 @@ watch(() => [open.value, props.request?.id] as const, ([isOpen, id], previous) =
   loadEvents(id)
 }, { immediate: true })
 
+// ─── Edicion ────────────────────────────────────────────────────────────────
+const final = computed(() => !!props.request && isFinal(props.request))
+type EditField = 'priority' | 'assignee' | 'review' | 'party'
+const saving = ref<EditField | null>(null)
+const editError = ref<string | null>(null)
+
+const statusDialogOpen = ref(false)
+const statusPreset = ref<MaintenanceStatus | null>(null)
+
+const nextSteps = computed(() =>
+  props.request ? NEXT_STEPS[props.request.status as MaintenanceStatus] ?? [] : []
+)
+
+function openStatusDialog(preset: MaintenanceStatus | null) {
+  statusPreset.value = preset
+  statusDialogOpen.value = true
+}
+
+/**
+ * El store ya actualizo la tarjeta. El PATCH devuelve la solicitud completa,
+ * asi que sirve de detalle; solo hace falta volver a pedir la bitacora.
+ */
+function refreshPanel(updated: MaintenanceRequestDetail) {
+  detailSeq++ // descarta un detalle anterior que aun venga en camino
+  detail.value = updated
+  detailError.value = null
+  detailLoading.value = false
+  loadEvents(updated.id)
+}
+
+async function applyChange(field: EditField, payload: MaintenanceRequestUpdate) {
+  if (!props.request || saving.value) return
+  saving.value = field
+  editError.value = null
+  try {
+    refreshPanel(await updateRequest(props.request.id, payload))
+  } catch (err: any) {
+    editError.value = err?.message || 'No se pudo guardar el cambio'
+  } finally {
+    saving.value = null
+  }
+}
+
+function onPriority(value: any) {
+  if (!value || value === props.request?.priority) return
+  applyChange('priority', { priority: value as MaintenancePriority })
+}
+
+// radix Select no admite value vacio: 'none' representa "sin asignar"
+const NO_ASSIGNEE = 'none'
+
+/** Por ahora solo los managers reciben solicitudes; se agrega el actual si no lo es. */
+const assigneeOptions = computed(() => {
+  const options = staff.value.map(s => ({ id: s.id, name: s.name }))
+  const r = props.request
+  if (r?.assignedUserId != null && !options.some(o => o.id === r.assignedUserId)) {
+    options.unshift({ id: r.assignedUserId, name: r.assignedUserName ?? `Usuario ${r.assignedUserId}` })
+  }
+  return options
+})
+
+function onAssignee(value: any) {
+  const next = value === NO_ASSIGNEE ? null : Number(value)
+  if (next === (props.request?.assignedUserId ?? null)) return
+  applyChange('assignee', { assigned_user_id: next })
+}
+
+function setResponsibleParty(value: ResponsibleParty | null) {
+  if (value === (props.request?.responsibleParty ?? null)) return
+  applyChange('party', { responsible_party: value })
+}
+
+function setReview(payload: { needsReview: boolean; reason: string | null }) {
+  applyChange('review', {
+    needs_review: payload.needsReview,
+    ...(payload.needsReview ? { review_reason: payload.reason } : {}),
+  })
+}
+
+function onNoteAdded(event: MaintenanceEvent) {
+  events.value = [...events.value, event]
+}
+
+watch(() => props.request?.id, () => { editError.value = null })
+
 const steps = computed(() => {
   const status = props.request?.status as MaintenanceStatus | undefined
   const current = status ? STATUS_FLOW.indexOf(status) : -1
@@ -123,18 +211,47 @@ const steps = computed(() => {
               </div>
               <div>
                 <p class="text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">Prioridad</p>
-                <MaintenancePriorityPill :priority="request.priority" class="mt-1" />
+                <MaintenancePriorityPill v-if="final" :priority="request.priority" class="mt-1" />
+                <Select
+                  v-else
+                  :model-value="request.priority"
+                  :disabled="saving !== null"
+                  @update:model-value="onPriority"
+                >
+                  <SelectTrigger class="mt-1 h-8 text-sm" aria-label="Prioridad">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="p in MAINTENANCE_PRIORITIES" :key="p.value" :value="p.value">{{ p.label }}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="min-w-0">
                 <p class="text-[11px] font-bold uppercase tracking-wide text-harbor-black/40">Responsable</p>
-                <div class="mt-1 flex items-center gap-1.5">
+                <div v-if="final" class="mt-1 flex items-center gap-1.5">
                   <MaintenanceAssigneeAvatar :user-id="request.assignedUserId" :name="request.assignedUserName" />
                   <span class="truncate text-sm" :class="request.assignedUserName ? 'text-harbor-black' : 'italic text-harbor-black/40'">
                     {{ request.assignedUserName || 'Sin asignar' }}
                   </span>
                 </div>
+                <Select
+                  v-else
+                  :model-value="request.assignedUserId != null ? String(request.assignedUserId) : NO_ASSIGNEE"
+                  :disabled="saving !== null"
+                  @update:model-value="onAssignee"
+                >
+                  <SelectTrigger class="mt-1 h-8 text-sm" aria-label="Responsable">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem :value="NO_ASSIGNEE">Sin asignar</SelectItem>
+                    <SelectItem v-for="u in assigneeOptions" :key="u.id" :value="String(u.id)">{{ u.name }}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            <p v-if="editError" class="text-sm text-harbor-error">{{ editError }}</p>
 
             <!-- Etapa -->
             <div
@@ -172,6 +289,27 @@ const steps = computed(() => {
                 {{ step.label }}
               </li>
             </ol>
+
+            <div v-if="!final" class="flex flex-wrap items-center gap-2">
+              <Button
+                v-for="(step, i) in nextSteps"
+                :key="step.to"
+                size="sm"
+                :variant="i === 0 ? 'default' : 'outline'"
+                @click="openStatusDialog(step.to)"
+              >
+                {{ step.label }}
+              </Button>
+              <Button size="sm" variant="outline" @click="openStatusDialog(null)">Otro estado</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                class="ml-auto text-harbor-error hover:bg-harbor-error/10 hover:text-harbor-error"
+                @click="openStatusDialog('cancelada')"
+              >
+                Cancelar
+              </Button>
+            </div>
           </div>
 
           <!-- Pestañas -->
@@ -205,15 +343,29 @@ const steps = computed(() => {
               :detail-loading="detailLoading"
               :detail-error="detailError"
               :now="now"
+              :editable="!final"
+              :review-saving="saving === 'review'"
+              :party-saving="saving === 'party'"
+              @set-review="setReview"
+              @set-responsible-party="setResponsibleParty"
             />
             <MaintenanceRequestTimeline
               v-if="tab === 'bitacora'"
               :events="events"
               :loading="eventsLoading"
               :error="eventsError"
+              :request-id="request.id"
               @retry="loadEvents(request.id)"
+              @note-added="onNoteAdded"
             />
           </div>
+
+          <MaintenanceStatusChangeDialog
+            v-model:open="statusDialogOpen"
+            :request="request"
+            :preset="statusPreset"
+            @saved="refreshPanel"
+          />
         </template>
       </DialogContent>
     </DialogPortal>
