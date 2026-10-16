@@ -14,7 +14,10 @@ onMounted(() => {
 
 <template>
   <div>
-    <h1 class="text-2xl font-bold text-harbor-black mb-6">Agenda</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-harbor-black">Agenda</h1>
+      <AgendaReportActions />
+    </div>
 
     <!-- Calendario + Panel derecho -->
     <div class="flex gap-6 mb-6 items-start">
