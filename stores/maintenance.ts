@@ -86,11 +86,8 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   function requestContext() {
     const config = useRuntimeConfig()
     const authStore = useAuthStore()
-    if (!authStore.token) return null
-    return {
-      base: config.public.apiBaseUrl,
-      headers: { Authorization: `Bearer ${authStore.token}` },
-    }
+    if (!authStore.isAuthenticated) return null
+    return { base: config.public.apiBaseUrl }
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────
@@ -104,8 +101,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     openLoading.value = true
     openError.value = null
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
-        headers: ctx.headers,
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
         query: buildMaintenanceQuery(OPEN_STATUSES, null, OPEN_LIMIT, 0),
       })
       openRequests.value = data.map(normalizeMaintenanceRequest)
@@ -131,8 +127,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     closedLoading.value = true
     closedError.value = null
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
-        headers: ctx.headers,
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
         query: buildMaintenanceQuery(CLOSED_STATUSES, filters.value, CLOSED_PAGE_SIZE, offset),
       })
       if (seq !== closedSeq) return
@@ -154,8 +149,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     const ctx = requestContext()
     if (!ctx) return
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/staff/users`, {
-        headers: ctx.headers,
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/users`, {
         params: { roles: 'manager' },
       })
       staff.value = data
@@ -192,9 +186,8 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     if (!ctx) throw new Error('No hay sesion activa')
 
     try {
-      const data = await $fetch<any[]>(
+      const data = await apiFetch<any[]>(
         `${ctx.base}/staff/maintenance/requests/${requestId}/attachments`,
-        { headers: ctx.headers },
       )
       return data.map(normalizeMaintenanceAttachment)
     } catch (err: any) {
@@ -209,9 +202,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     if (!ctx) throw new Error('No hay sesion activa')
 
     try {
-      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
-        headers: ctx.headers,
-      })
+      const data = await apiFetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`)
       return normalizeMaintenanceRequestDetail(data)
     } catch (err: any) {
       console.error('Error cargando el detalle de la solicitud:', err)
@@ -225,9 +216,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     if (!ctx) throw new Error('No hay sesion activa')
 
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/staff/maintenance/requests/${requestId}/events`, {
-        headers: ctx.headers,
-      })
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/maintenance/requests/${requestId}/events`)
       return data.map(normalizeMaintenanceEvent)
     } catch (err: any) {
       console.error('Error cargando la bitacora:', err)
@@ -278,9 +267,8 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     const body = withAutoAssign(payload, current ?? null, myUserId.value)
 
     try {
-      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
+      const data = await apiFetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}`, {
         method: 'PATCH',
-        headers: ctx.headers,
         body,
       })
       const updated = normalizeMaintenanceRequestDetail(data)
@@ -298,9 +286,8 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     if (!ctx) throw new Error('No hay sesion activa')
 
     try {
-      const data = await $fetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}/notes`, {
+      const data = await apiFetch<any>(`${ctx.base}/staff/maintenance/requests/${requestId}/notes`, {
         method: 'POST',
-        headers: ctx.headers,
         body: { note },
       })
       return normalizeMaintenanceEvent(data)

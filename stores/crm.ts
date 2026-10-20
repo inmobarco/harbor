@@ -21,15 +21,11 @@ export const useCrmStore = defineStore('crm', () => {
   let inflight: Promise<void> | null = null
 
   async function runFetch() {
-    const authStore = useAuthStore()
-
     loading.value = true
     error.value = null
 
     try {
-      const data = await $fetch<CrmOverviewResponse>('/api/crm/overview', {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      })
+      const data = await apiFetch<CrmOverviewResponse>('/api/crm/overview')
       advisors.value = data.advisors
       totals.value = data.totals
       loadedAt.value = Date.now()
@@ -47,7 +43,7 @@ export const useCrmStore = defineStore('crm', () => {
   /** Fuerza el fetch, ignorando el cache. */
   async function fetchOverview() {
     const authStore = useAuthStore()
-    if (!authStore.token) {
+    if (!authStore.isAuthenticated) {
       error.value = 'No hay sesion activa'
       return
     }

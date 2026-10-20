@@ -133,16 +133,15 @@ function downloadBlob(filename: string, blob: Blob) {
 async function fetchMonthAppointments(start: Date, end: Date): Promise<AppointmentApiResponse[]> {
   const config = useRuntimeConfig()
   const authStore = useAuthStore()
-  if (!authStore.token) throw new Error('No hay sesion activa')
+  if (!authStore.isAuthenticated) throw new Error('No hay sesion activa')
 
   const after = new Date(start)
   after.setDate(after.getDate() - 1)
 
-  const data = await $fetch<AppointmentApiResponse[]>(
+  const data = await apiFetch<AppointmentApiResponse[]>(
     `${config.public.apiBaseUrl}/staff/appointments`,
     {
       params: { after: ymd(after), roles: 'sales_agent,listing_agent,admin' },
-      headers: { Authorization: `Bearer ${authStore.token}` },
     }
   )
 

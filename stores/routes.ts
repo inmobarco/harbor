@@ -65,11 +65,8 @@ export const useRoutesStore = defineStore('routes', () => {
   function requestContext() {
     const config = useRuntimeConfig()
     const authStore = useAuthStore()
-    if (!authStore.token) return null
-    return {
-      base: config.public.apiBaseUrl,
-      headers: { Authorization: `Bearer ${authStore.token}` },
-    }
+    if (!authStore.isAuthenticated) return null
+    return { base: config.public.apiBaseUrl }
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────
@@ -83,9 +80,7 @@ export const useRoutesStore = defineStore('routes', () => {
     routesLoading.value = true
     routesError.value = null
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/staff/scheduling/routes`, {
-        headers: ctx.headers,
-      })
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/scheduling/routes`)
       routes.value = data.map(normalizeRouteSummary)
 
       // Si la ruta seleccionada desaparecio (borrada en otra sesion), soltarla
@@ -110,9 +105,7 @@ export const useRoutesStore = defineStore('routes', () => {
     detailLoading.value = true
     detailError.value = null
     try {
-      const data = await $fetch<any>(`${ctx.base}/staff/scheduling/routes/${routeId}`, {
-        headers: ctx.headers,
-      })
+      const data = await apiFetch<any>(`${ctx.base}/staff/scheduling/routes/${routeId}`)
       details.value = { ...details.value, [routeId]: normalizeRouteDetail(data) }
     } catch (err: any) {
       console.error('Error cargando la ruta:', err)
@@ -140,9 +133,7 @@ export const useRoutesStore = defineStore('routes', () => {
     complexesLoading.value = true
     complexesError.value = null
     try {
-      const data = await $fetch<any[]>(`${ctx.base}/inventory/residential-complexes`, {
-        headers: ctx.headers,
-      })
+      const data = await apiFetch<any[]>(`${ctx.base}/inventory/residential-complexes`)
       complexes.value = data
         .filter(c => c.is_active !== false)
         .map(normalizeComplex)
@@ -179,9 +170,8 @@ export const useRoutesStore = defineStore('routes', () => {
     try {
       const results = await Promise.allSettled(
         agendaStore.advisors.map(async advisor => {
-          const data = await $fetch<any>(
-            `${ctx.base}/staff/scheduling/advisors/${advisor.id}/routes`,
-            { headers: ctx.headers }
+          const data = await apiFetch<any>(
+            `${ctx.base}/staff/scheduling/advisors/${advisor.id}/routes`
           )
           return flattenAdvisorRoutes(data, advisor.id)
         })
@@ -210,9 +200,8 @@ export const useRoutesStore = defineStore('routes', () => {
     const ctx = requestContext()
     if (!ctx) throw new Error('No hay sesion activa')
 
-    const data = await $fetch<any>(`${ctx.base}/staff/scheduling/routes`, {
+    const data = await apiFetch<any>(`${ctx.base}/staff/scheduling/routes`, {
       method: 'POST',
-      headers: ctx.headers,
       body: {
         name: payload.name,
         notes: payload.notes,
@@ -236,9 +225,8 @@ export const useRoutesStore = defineStore('routes', () => {
     if (payload.notes !== undefined) body.notes = payload.notes
     if (payload.complexIds !== undefined) body.complex_ids = payload.complexIds
 
-    const data = await $fetch<any>(`${ctx.base}/staff/scheduling/routes/${routeId}`, {
+    const data = await apiFetch<any>(`${ctx.base}/staff/scheduling/routes/${routeId}`, {
       method: 'PATCH',
-      headers: ctx.headers,
       body,
     })
 
@@ -252,9 +240,8 @@ export const useRoutesStore = defineStore('routes', () => {
     const ctx = requestContext()
     if (!ctx) throw new Error('No hay sesion activa')
 
-    await $fetch(`${ctx.base}/staff/scheduling/routes/${routeId}`, {
+    await apiFetch(`${ctx.base}/staff/scheduling/routes/${routeId}`, {
       method: 'DELETE',
-      headers: ctx.headers,
     })
 
     // El backend desactiva en cascada las asignaciones de la ruta
@@ -270,9 +257,8 @@ export const useRoutesStore = defineStore('routes', () => {
     const ctx = requestContext()
     if (!ctx) throw new Error('No hay sesion activa')
 
-    const data = await $fetch<any>(`${ctx.base}/staff/scheduling/route-assignments`, {
+    const data = await apiFetch<any>(`${ctx.base}/staff/scheduling/route-assignments`, {
       method: 'POST',
-      headers: ctx.headers,
       body: {
         route_id: payload.routeId,
         advisor_id: Number(payload.advisorId),
@@ -299,9 +285,8 @@ export const useRoutesStore = defineStore('routes', () => {
     const ctx = requestContext()
     if (!ctx) throw new Error('No hay sesion activa')
 
-    await $fetch(`${ctx.base}/staff/scheduling/route-assignments/${assignmentId}`, {
+    await apiFetch(`${ctx.base}/staff/scheduling/route-assignments/${assignmentId}`, {
       method: 'DELETE',
-      headers: ctx.headers,
     })
 
     assignments.value = assignments.value.filter(a => a.id !== assignmentId)

@@ -3,7 +3,7 @@ import { ROUTE_MANAGE_ROLES } from '~/types/route'
 import { MAINTENANCE_VIEW_ROLES } from '~/types/maintenance'
 
 const authStore = useAuthStore()
-const router = useRouter()
+const { logout } = useAuth()
 const route = useRoute()
 
 interface NavItem {
@@ -33,11 +33,6 @@ function isActive(item: NavItem) {
   if (item.to === '/propiedades') return route.path === '/propiedades' && !route.query.status
   if (item.to.includes('?status=inactive')) return route.path === '/propiedades' && route.query.status === 'inactive'
   return route.path === item.to
-}
-
-function logout() {
-  authStore.clearSession()
-  router.push('/login')
 }
 </script>
 

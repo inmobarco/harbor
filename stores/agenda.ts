@@ -34,7 +34,7 @@ export const useAgendaStore = defineStore('agenda', () => {
     const config = useRuntimeConfig()
     const authStore = useAuthStore()
 
-    if (!authStore.token) {
+    if (!authStore.isAuthenticated) {
       advisorsError.value = 'No hay sesion activa'
       return
     }
@@ -43,11 +43,10 @@ export const useAgendaStore = defineStore('agenda', () => {
     advisorsError.value = null
 
     try {
-      const data = await $fetch<AdvisorApiResponse[]>(
+      const data = await apiFetch<AdvisorApiResponse[]>(
         `${config.public.apiBaseUrl}/staff/users`,
         {
           params: { roles: 'sales_agent,listing_agent,admin' },
-          headers: { Authorization: `Bearer ${authStore.token}` },
         }
       )
 
@@ -71,7 +70,7 @@ export const useAgendaStore = defineStore('agenda', () => {
     const config = useRuntimeConfig()
     const authStore = useAuthStore()
 
-    if (!authStore.token) {
+    if (!authStore.isAuthenticated) {
       appointmentsError.value = 'No hay sesion activa'
       return
     }
@@ -87,14 +86,13 @@ export const useAgendaStore = defineStore('agenda', () => {
     const after = `${year}-${String(month).padStart(2, '0')}-01`
 
     try {
-      const data = await $fetch<AppointmentApiResponse[]>(
+      const data = await apiFetch<AppointmentApiResponse[]>(
         `${config.public.apiBaseUrl}/staff/appointments`,
         {
           params: {
             after,
             roles: 'sales_agent,listing_agent,admin',
           },
-          headers: { Authorization: `Bearer ${authStore.token}` },
         }
       )
 

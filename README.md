@@ -117,6 +117,7 @@ Está diseñado para uso en oficina (**desktop-first**). Los asesores de campo o
 - **SPA pura** — SSR desactivado; todo el render ocurre en cliente.
 - **Cifrado de IDs** — los IDs de propiedades se cifran con XOR + base64 para URLs externas (`useEncryption.ts`).
 - **Autenticación por middleware global** — `middleware/auth.global.ts` protege todas las rutas excepto `/login`.
+- **Sesión con refresh token** — todo request a la API propia pasa por `apiFetch` (`composables/useApi.ts`): agrega el Bearer y, ante `401 token_expired`, renueva con `/auth/refresh` y reintenta. Un solo refresh a la vez, también entre pestañas (`navigator.locks`).
 
 ---
 
@@ -274,11 +275,13 @@ harbor/
 ### API Propia (VPS + PostgreSQL)
 
 - **Variable:** `NUXT_PUBLIC_API_BASE_URL`
-- **Autenticación:** Bearer token (almacenado en localStorage como `harbor_token`)
+- **Autenticación:** access token (Bearer) + refresh token rotativo de 90 días, en localStorage como `harbor_token` y `harbor_refresh_token`
 - **Composables:** `useAuth.ts`, `useAgenda.ts`, `useAdvisors.ts`
 - **Stores:** `stores/auth.ts`, `stores/agenda.ts`, `stores/advisors.ts`
 - **Endpoints usados:**
   - `POST /login` — autenticación
+  - `POST /auth/refresh` — canjea el refresh token por un par nuevo (rotación)
+  - `POST /auth/logout` — revoca el refresh token del dispositivo
   - `GET /staff/users` — listado de asesores
   - `GET /staff/appointments` — listado de citas
 
