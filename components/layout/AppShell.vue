@@ -1,11 +1,15 @@
 <script setup lang="ts">
-// Layout wrapper: sidebar fija + topbar + contenido principal
+// Layout wrapper: sidebar desplegable + topbar + contenido principal
+const { open } = useSidebar()
 </script>
 
 <template>
   <div class="min-h-screen">
     <LayoutAppSidebar />
-    <div class="ml-64 flex-1 flex flex-col">
+    <div
+      class="flex-1 flex flex-col transition-[margin] duration-200 motion-reduce:transition-none"
+      :class="open ? 'ml-64' : 'ml-0'"
+    >
       <LayoutAppTopbar />
       <main class="flex-1 p-6">
         <slot />

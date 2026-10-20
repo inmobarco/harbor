@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { PanelLeftClose } from 'lucide-vue-next'
 import { ROUTE_MANAGE_ROLES } from '~/types/route'
 import { MAINTENANCE_VIEW_ROLES } from '~/types/maintenance'
 
 const authStore = useAuthStore()
 const { logout } = useAuth()
+const { open, toggle } = useSidebar()
 const route = useRoute()
 
 interface NavItem {
@@ -37,9 +39,27 @@ function isActive(item: NavItem) {
 </script>
 
 <template>
-  <aside class="w-64 bg-harbor-black text-white h-screen flex flex-col fixed top-0 left-0">
+  <!-- inert al cerrarse: fuera de pantalla no debe recibir foco ni clics -->
+  <aside
+    id="app-sidebar"
+    class="w-64 bg-harbor-black text-white h-screen flex flex-col fixed top-0 left-0 z-40 transition-transform duration-200 motion-reduce:transition-none"
+    :class="open ? 'translate-x-0' : '-translate-x-full'"
+    :inert="!open"
+    aria-label="Menu principal"
+  >
     <!-- Logo -->
-    <div class="p-6 border-b border-white/10 flex items-center gap-3">
+    <div class="px-4 py-6 border-b border-white/10 flex items-center gap-3">
+      <button
+        type="button"
+        class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-harbor-gray hover:bg-white/10 hover:text-white transition-colors"
+        aria-label="Ocultar menu"
+        aria-controls="app-sidebar"
+        :aria-expanded="open"
+        title="Ocultar menu"
+        @click="toggle"
+      >
+        <PanelLeftClose class="h-5 w-5" />
+      </button>
       <img src="/isotipo.png" alt="Inmobarco" class="h-9 w-auto shrink-0" />
       <div>
         <h1 class="text-xl font-bold text-harbor-blue">Harbor</h1>

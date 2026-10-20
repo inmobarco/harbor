@@ -1,13 +1,21 @@
 /** GET /staff/maintenance/requests exige admin o manager. */
 export const MAINTENANCE_VIEW_ROLES = ['admin', 'manager']
 
-/** Deben coincidir con MAINTENANCE_STATUSES del backend (CHECK de maintenance.request). */
+/**
+ * Deben coincidir con MAINTENANCE_STATUSES del backend (CHECK de maintenance.request).
+ * El codigo se conserva; la etiqueta describe el proceso actual:
+ *   recibida → la persona toma la solicitud y contacta al cliente (en_revision)
+ *   → agenda tecnico para revisar y cotizar (programada) → envia la cotizacion
+ *   (esperando_aprobacion) → aprobada, tecnico a reparar (en_ejecucion)
+ *   → resuelta → cerrada.
+ * En el orden del proceso: asi aparecen en los selectores.
+ */
 export const MAINTENANCE_STATUSES = [
   { value: 'recibida', label: 'Recibida' },
-  { value: 'en_revision', label: 'En revision' },
+  { value: 'en_revision', label: 'En seguimiento' },
+  { value: 'programada', label: 'Revision agendada' },
   { value: 'esperando_aprobacion', label: 'Esperando aprobacion' },
-  { value: 'programada', label: 'Programada' },
-  { value: 'en_ejecucion', label: 'En ejecucion' },
+  { value: 'en_ejecucion', label: 'En reparacion' },
   { value: 'resuelta', label: 'Resuelta' },
   { value: 'cerrada', label: 'Cerrada' },
   { value: 'cancelada', label: 'Cancelada' },
@@ -87,15 +95,18 @@ export interface MaintenanceRequest {
 
 /** Estados en curso: el tablero los carga todos de una vez. */
 export const OPEN_STATUSES: MaintenanceStatus[] = [
-  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion', 'resuelta',
+  'recibida', 'en_revision', 'programada', 'esperando_aprobacion', 'en_ejecucion', 'resuelta',
 ]
 
 /** Estados finales: no se reabren, solo se consultan en la tabla. */
 export const CLOSED_STATUSES: MaintenanceStatus[] = ['cerrada', 'cancelada']
 
-/** Recorrido normal de una solicitud. Se puede saltar o retroceder entre etapas. */
+/**
+ * Recorrido normal de una solicitud. Se puede saltar o retroceder entre etapas
+ * (p. ej. una urgencia va de en seguimiento directo a reparacion).
+ */
 export const STATUS_FLOW: MaintenanceStatus[] = [
-  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion', 'resuelta', 'cerrada',
+  'recibida', 'en_revision', 'programada', 'esperando_aprobacion', 'en_ejecucion', 'resuelta', 'cerrada',
 ]
 
 /**
@@ -111,7 +122,7 @@ export const SLA_HOURS: Record<MaintenancePriority, number> = {
 
 /** Estados en los que corre el plazo. En resuelta el trabajo ya se hizo. */
 export const SLA_STATUSES: MaintenanceStatus[] = [
-  'recibida', 'en_revision', 'esperando_aprobacion', 'programada', 'en_ejecucion',
+  'recibida', 'en_revision', 'programada', 'esperando_aprobacion', 'en_ejecucion',
 ]
 
 export const BOARD_COLUMNS: {
@@ -121,9 +132,10 @@ export const BOARD_COLUMNS: {
   statuses: MaintenanceStatus[]
   dotClass: string
 }[] = [
-  { key: 'nuevas', title: 'Nuevas', hint: 'Clasificar, asignar y validar contrato', statuses: ['recibida', 'en_revision'], dotClass: 'bg-harbor-info' },
-  { key: 'aprobacion', title: 'Esperando aprobacion', hint: 'Cotizacion enviada al propietario', statuses: ['esperando_aprobacion'], dotClass: 'bg-harbor-warning' },
-  { key: 'curso', title: 'En curso', hint: 'Visita agendada o tecnico en sitio', statuses: ['programada', 'en_ejecucion'], dotClass: 'bg-harbor-blue' },
+  { key: 'nuevas', title: 'Nuevas', hint: 'Tomar, contactar al cliente y agendar la revision', statuses: ['recibida', 'en_revision'], dotClass: 'bg-harbor-info' },
+  { key: 'revision', title: 'Revision y cotizacion', hint: 'Tecnico agendado para revisar y cotizar', statuses: ['programada'], dotClass: 'bg-harbor-blue-dark' },
+  { key: 'aprobacion', title: 'Esperando aprobacion', hint: 'Cotizacion enviada al propietario o arrendatario', statuses: ['esperando_aprobacion'], dotClass: 'bg-harbor-warning' },
+  { key: 'reparacion', title: 'En reparacion', hint: 'Aprobada: tecnico enviado a reparar', statuses: ['en_ejecucion'], dotClass: 'bg-harbor-blue' },
   { key: 'resueltas', title: 'Resueltas', hint: 'Confirmar con el cliente y cerrar', statuses: ['resuelta'], dotClass: 'bg-harbor-success' },
 ]
 

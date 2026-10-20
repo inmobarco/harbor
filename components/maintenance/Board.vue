@@ -82,7 +82,7 @@ const columns = computed(() =>
     <p v-if="error" class="mb-3 text-sm text-harbor-error">{{ error }}</p>
 
     <div class="overflow-x-auto pb-2">
-      <div class="grid grid-cols-[repeat(4,minmax(270px,1fr))] gap-3 items-start">
+      <div class="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 items-start">
         <section
           v-for="col in columns"
           :key="col.key"

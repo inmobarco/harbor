@@ -164,15 +164,23 @@ export function isFinal(r: MaintenanceRequest): boolean {
   return CLOSED_STATUSES.includes(r.status as MaintenanceStatus)
 }
 
-/** Siguiente paso habitual desde cada estado, para los botones del panel. */
+/**
+ * Siguiente paso habitual desde cada estado, para los botones del panel. El
+ * primero es el camino normal; el segundo, el atajo (p. ej. una urgencia que
+ * se repara sin cotizar). Cualquier otro salto va por "Otro estado".
+ * "Tomar" asigna a quien lo pulsa: lo hace withAutoAssign en el PATCH.
+ */
 export const NEXT_STEPS: Partial<Record<MaintenanceStatus, { to: MaintenanceStatus; label: string }[]>> = {
-  recibida: [{ to: 'en_revision', label: 'Tomar y revisar' }],
+  recibida: [{ to: 'en_revision', label: 'Tomar e iniciar seguimiento' }],
   en_revision: [
-    { to: 'programada', label: 'Programar visita' },
-    { to: 'esperando_aprobacion', label: 'Enviar a aprobacion' },
+    { to: 'programada', label: 'Agendar revision y cotizacion' },
+    { to: 'en_ejecucion', label: 'Enviar a reparar' },
   ],
-  esperando_aprobacion: [{ to: 'programada', label: 'Aprobada · programar' }],
-  programada: [{ to: 'en_ejecucion', label: 'Iniciar ejecucion' }],
+  programada: [
+    { to: 'esperando_aprobacion', label: 'Enviar cotizacion' },
+    { to: 'en_ejecucion', label: 'Enviar a reparar' },
+  ],
+  esperando_aprobacion: [{ to: 'en_ejecucion', label: 'Aprobada · enviar a reparar' }],
   en_ejecucion: [{ to: 'resuelta', label: 'Marcar resuelta' }],
   resuelta: [{ to: 'cerrada', label: 'Cerrar solicitud' }],
 }
