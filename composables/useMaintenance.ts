@@ -42,6 +42,8 @@ export function useMaintenance() {
     staff: computed(() => store.staff),
     // Derived
     myUserId: computed(() => store.myUserId),
+    openSubmissionCounts: computed(() => store.openSubmissionCounts),
+    submissions: computed(() => store.submissions),
     activeAssignees,
     assigneeColor,
     // Actions
@@ -56,5 +58,7 @@ export function useMaintenance() {
     fetchEvents: store.fetchEvents,
     updateRequest: store.updateRequest,
     addNote: store.addNote,
+    fetchSubmission: store.fetchSubmission,
+    findRequest: store.findRequest,
   }
 }

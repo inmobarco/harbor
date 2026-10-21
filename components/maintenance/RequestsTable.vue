@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle, Layers } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import {
@@ -27,6 +27,13 @@ const props = defineProps<{
 const includeClosed = defineModel<boolean>('includeClosed', { default: true })
 
 const emit = defineEmits<{ select: [requestId: number]; loadMoreClosed: [] }>()
+
+const { openSubmissionCounts } = useMaintenance()
+
+/** Otras solicitudes abiertas del mismo envio. */
+function siblingsOpen(r: MaintenanceRequest): number {
+  return r.submissionId ? Math.max(0, (openSubmissionCounts.value.get(r.submissionId) ?? 1) - 1) : 0
+}
 
 const sortedOpen = computed(() => [...props.openRequests].sort(compareByUpdatedDesc))
 const showClosed = computed(() => includeClosed.value && !props.quickActive)
@@ -107,6 +114,13 @@ function onRowKey(e: KeyboardEvent, id: number) {
               <td class="px-4 py-2.5 whitespace-nowrap">
                 <p class="font-mono font-semibold">{{ r.ticket }}</p>
                 <p class="text-xs text-harbor-black/50 mt-0.5">{{ formatDate(r.submittedAt ?? r.createdAt) }}</p>
+                <p
+                  v-if="group.key === 'open' && siblingsOpen(r)"
+                  class="flex items-center gap-1 mt-1 text-xs font-semibold text-harbor-blue-dark"
+                  :title="`Reportada junto con ${siblingsOpen(r)} solicitud(es) mas que siguen abiertas`"
+                >
+                  <Layers class="h-3.5 w-3.5" /> +{{ siblingsOpen(r) }} mismo envio
+                </p>
               </td>
               <td class="px-4 py-2.5 whitespace-nowrap">
                 <MaintenanceStatusPill :status="r.status" />

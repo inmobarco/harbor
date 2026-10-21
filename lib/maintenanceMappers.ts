@@ -22,6 +22,8 @@ export function normalizeMaintenanceRequest(raw: any): MaintenanceRequest {
   return {
     id: Number(raw.id),
     ticket: String(raw.ticket ?? ''),
+    submissionId: str(raw.submission_id),
+    issueIndex: raw.issue_index != null ? Number(raw.issue_index) : null,
     status: String(raw.status ?? ''),
     priority: String(raw.priority ?? ''),
     responsibleParty: str(raw.responsible_party),
@@ -81,7 +83,6 @@ export function normalizeMaintenanceRequestDetail(raw: any): MaintenanceRequestD
       // El detalle no trae el recorte del listado: se arma igual para no romper la vista
       description_preview: raw.description_preview ?? description?.slice(0, 160) ?? null,
     }),
-    submissionId: str(raw.submission_id),
     reporterDocument: str(raw.reporter_document),
     reporterEmail: str(raw.reporter_email),
     categoryId: raw.category_id != null ? Number(raw.category_id) : null,

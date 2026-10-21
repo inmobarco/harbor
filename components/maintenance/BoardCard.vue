@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AlertTriangle, Clock, Flame, Paperclip } from 'lucide-vue-next'
+import { AlertTriangle, Clock, Flame, Layers, Paperclip } from 'lucide-vue-next'
 import { ageHours, formatAge, locationLabel, slaHours, slaState } from '~/lib/maintenanceView'
 import type { MaintenanceRequest } from '~/types/maintenance'
 
@@ -21,6 +21,14 @@ function onKeydown(e: KeyboardEvent) {
     emit('select')
   }
 }
+
+const { openSubmissionCounts } = useMaintenance()
+
+/** Otras solicitudes abiertas del mismo envio (la lista completa esta en el panel). */
+const siblingsOpen = computed(() => {
+  const id = props.request.submissionId
+  return id ? Math.max(0, (openSubmissionCounts.value.get(id) ?? 1) - 1) : 0
+})
 
 const sla = computed(() => slaState(props.request, props.now))
 const age = computed(() => formatAge(ageHours(props.request, props.now)))
@@ -63,10 +71,17 @@ const AGE_CLASSES = {
     </p>
 
     <div
-      v-if="showStatus || request.isHappeningNow || request.needsReview || request.attachmentCount"
+      v-if="showStatus || request.isHappeningNow || request.needsReview || request.attachmentCount || siblingsOpen"
       class="flex flex-wrap items-center gap-2"
     >
       <MaintenanceStatusPill v-if="showStatus" :status="request.status" />
+      <span
+        v-if="siblingsOpen"
+        class="inline-flex items-center gap-1 text-[11px] font-bold text-harbor-blue-dark"
+        :title="`Reportada junto con ${siblingsOpen} solicitud(es) mas que siguen abiertas`"
+      >
+        <Layers class="h-3.5 w-3.5" /> +{{ siblingsOpen }} mismo envio
+      </span>
       <span v-if="request.isHappeningNow" class="inline-flex items-center gap-1 text-[11px] font-bold text-harbor-error">
         <Flame class="h-3.5 w-3.5" /> Ocurre ahora
       </span>

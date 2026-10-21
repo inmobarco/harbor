@@ -19,6 +19,8 @@ const props = defineProps<{
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
+/** Abrir otra solicitud en el panel (p. ej. una del mismo envio). */
+const emit = defineEmits<{ select: [requestId: number] }>()
 
 const { fetchDetail, fetchEvents, updateRequest, staff } = useMaintenance()
 
@@ -348,6 +350,7 @@ const steps = computed(() => {
               :party-saving="saving === 'party'"
               @set-review="setReview"
               @set-responsible-party="setResponsibleParty"
+              @select="id => emit('select', id)"
             />
             <MaintenanceRequestTimeline
               v-if="tab === 'bitacora'"

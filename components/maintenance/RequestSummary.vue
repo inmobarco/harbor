@@ -30,6 +30,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   setReview: [payload: { needsReview: boolean; reason: string | null }]
   setResponsibleParty: [value: ResponsibleParty | null]
+  select: [requestId: number]
 }>()
 
 // radix Select no admite value vacio: 'none' representa "sin definir"
@@ -158,6 +159,8 @@ const SLA_TEXT = {
 
 <template>
   <div class="flex flex-col gap-5">
+    <MaintenanceSubmissionSiblings :request="request" @select="id => emit('select', id)" />
+
     <p v-if="detailError" class="rounded-lg bg-harbor-error/10 px-3 py-2 text-sm text-harbor-error">
       {{ detailError }}. Se muestran los datos del listado.
     </p>
@@ -405,7 +408,7 @@ const SLA_TEXT = {
         <div class="space-y-2 border-t border-harbor-gray/60 px-3 py-2.5 text-xs">
           <p><span class="font-semibold text-harbor-black/50">IP:</span> <span class="font-mono">{{ detail.consentIp || '—' }}</span></p>
           <p class="break-all"><span class="font-semibold text-harbor-black/50">Navegador:</span> {{ detail.consentUserAgent || '—' }}</p>
-          <p v-if="detail.submissionId"><span class="font-semibold text-harbor-black/50">Envio:</span> <span class="font-mono">{{ detail.submissionId }}</span></p>
+          <p v-if="request.submissionId"><span class="font-semibold text-harbor-black/50">Envio:</span> <span class="font-mono">{{ request.submissionId }}</span></p>
           <pre
             v-if="rawPayloadText"
             class="max-h-72 overflow-auto rounded-md bg-harbor-neutral-white p-2 font-mono text-[11px] leading-snug text-harbor-black/80"

@@ -56,6 +56,12 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   const closedError = ref<string | null>(null)
   const closedHasMore = ref(false)
 
+  /**
+   * Solicitudes de un mismo envio, por submissionId. Incluye cerradas y
+   * canceladas que no esten cargadas en las listas, para poder abrirlas.
+   */
+  const submissions = ref<Record<string, MaintenanceRequest[]>>({})
+
   const staff = ref<MaintenanceStaff[]>([])
   const filters = ref<MaintenanceFilters>(emptyFilters())
   /**
@@ -68,6 +74,18 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
   let closedSeq = 0
 
   // ─── Computed ─────────────────────────────────────────────────────────────
+  /**
+   * Cuantas solicitudes abiertas comparte cada envio. Vive en el store (y no en
+   * cada tarjeta) para calcularlo una sola vez por cambio.
+   */
+  const openSubmissionCounts = computed(() => {
+    const counts = new Map<string, number>()
+    for (const r of openRequests.value) {
+      if (r.submissionId) counts.set(r.submissionId, (counts.get(r.submissionId) ?? 0) + 1)
+    }
+    return counts
+  })
+
   /**
    * id del usuario en sesion. Las sesiones iniciadas antes de que el login
    * devolviera el id no lo tienen: en ese caso se busca por nombre en
@@ -230,7 +248,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
    */
   function toListRow(d: MaintenanceRequestDetail): MaintenanceRequest {
     const {
-      submissionId, reporterDocument, reporterEmail, categoryId, subcategoryId, description,
+      reporterDocument, reporterEmail, categoryId, subcategoryId, description,
       availableDays, timeSlot, availabilityNotes, archivePrefix, consentAccepted,
       consentPolicyVersion, consentAcceptedAt, consentIp, consentUserAgent, rawPayload,
       ...row
@@ -248,6 +266,41 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     const withoutClosed = closedRequests.value.filter(r => r.id !== updated.id)
     openRequests.value = isClosed ? withoutOpen : [updated, ...withoutOpen]
     closedRequests.value = isClosed ? [updated, ...withoutClosed] : withoutClosed
+
+    // Mantener al dia el aviso de "mismo envio" de las demas solicitudes
+    const group = updated.submissionId ? submissions.value[updated.submissionId] : undefined
+    if (group && updated.submissionId) {
+      submissions.value = {
+        ...submissions.value,
+        [updated.submissionId]: group.map(r => (r.id === updated.id ? updated : r)),
+      }
+    }
+  }
+
+  /** Todas las solicitudes del envio (cualquier estado), ordenadas por issue_index. */
+  async function fetchSubmission(submissionId: string): Promise<MaintenanceRequest[]> {
+    const ctx = requestContext()
+    if (!ctx) throw new Error('No hay sesion activa')
+
+    try {
+      const data = await apiFetch<any[]>(`${ctx.base}/staff/maintenance/requests`, {
+        query: { submission_id: submissionId, limit: 50 },
+      })
+      const rows = data.map(normalizeMaintenanceRequest)
+      submissions.value = { ...submissions.value, [submissionId]: rows }
+      return rows
+    } catch (err: any) {
+      console.error('Error cargando las solicitudes del mismo envio:', err)
+      throw new Error(errorMessage(err, 'Error al cargar las solicitudes del mismo envio'))
+    }
+  }
+
+  /** Busca una solicitud en todo lo cargado: tablero, cerradas y envios. */
+  function findRequest(requestId: number): MaintenanceRequest | null {
+    return openRequests.value.find(r => r.id === requestId)
+      ?? closedRequests.value.find(r => r.id === requestId)
+      ?? Object.values(submissions.value).flat().find(r => r.id === requestId)
+      ?? null
   }
 
   /**
@@ -310,7 +363,9 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     staff,
     filters,
     defaultViewApplied,
+    submissions,
     // Computed
+    openSubmissionCounts,
     myUserId,
     // Actions
     fetchOpen,
@@ -324,5 +379,7 @@ export const useMaintenanceStore = defineStore('maintenance', () => {
     fetchEvents,
     updateRequest,
     addNote,
+    fetchSubmission,
+    findRequest,
   }
 })

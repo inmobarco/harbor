@@ -60,6 +60,14 @@ export function priorityLabel(priority: string): string {
 export interface MaintenanceRequest {
   id: number
   ticket: string
+  /**
+   * Envio del formulario. Si la persona reporto varias fallas a la vez, cada
+   * una es su propia solicitud con el mismo submissionId. Es solo informativo:
+   * estado, responsable, adjuntos y bitacora son independientes.
+   */
+  submissionId: string | null
+  /** Orden de la falla dentro del envio (1, 2, 3...). */
+  issueIndex: number | null
   status: string
   priority: string
   responsibleParty: string | null
@@ -216,7 +224,6 @@ export function previewKind(contentType: string | null): AttachmentPreviewKind |
  * personales, la disponibilidad y la evidencia de consentimiento.
  */
 export interface MaintenanceRequestDetail extends MaintenanceRequest {
-  submissionId: string | null
   reporterDocument: string | null
   reporterEmail: string | null
   categoryId: number | null

@@ -11,7 +11,7 @@ definePageMeta({ layout: 'default' })
 const {
   openRequests, openLoading, openError, openTruncated,
   closedRequests, closedLoading, closedError, closedHasMore,
-  filters, setFilters, fetchOpen, fetchClosed, fetchStaff, myUserId, applyDefaultView,
+  filters, setFilters, fetchOpen, fetchClosed, fetchStaff, myUserId, applyDefaultView, findRequest,
 } = useMaintenance()
 
 // La antiguedad y los plazos se recalculan cada minuto sin volver a pedir datos
@@ -69,9 +69,7 @@ const filteredClosed = computed(() =>
 watch(myUserId, () => applyDefaultView(), { immediate: true })
 
 const selectedRequest = computed(() =>
-  openRequests.value.find(r => r.id === selectedId.value)
-  ?? closedRequests.value.find(r => r.id === selectedId.value)
-  ?? null
+  selectedId.value === null ? null : findRequest(selectedId.value)
 )
 
 function select(requestId: number) {
@@ -219,6 +217,7 @@ async function refresh() {
       v-model:open="drawerOpen"
       :request="selectedRequest"
       :now="now"
+      @select="select"
     />
   </div>
 </template>
