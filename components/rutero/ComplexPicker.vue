@@ -40,7 +40,6 @@ const available = computed(() => {
   return props.complexes
     .filter(c => !chosen.has(c.id))
     .filter(c => !term || c.name.toLowerCase().includes(term))
-    .slice(0, 50)
 })
 
 function add(id: number) {
@@ -67,7 +66,7 @@ function move(index: number, delta: number) {
     <!-- Disponibles -->
     <div class="flex flex-col min-h-0">
       <p class="text-xs font-semibold text-harbor-black/60 uppercase tracking-wide mb-2">
-        Conjuntos disponibles
+        Conjuntos disponibles ({{ available.length }})
       </p>
       <div class="relative mb-2">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-harbor-black/40" />
