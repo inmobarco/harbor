@@ -1,4 +1,6 @@
-import type { Property, PropertyFilters, WasiPropertySearchResponse, WasiZone } from '~/types/property'
+import type {
+  Property, PropertyDetail, PropertyFilters, PropertyUpdate, WasiPropertySearchResponse, WasiZone,
+} from '~/types/property'
 
 /** Wasi devuelve la lista como claves numericas + `total` y `status`. */
 export function unwrapWasiList(response: WasiPropertySearchResponse): { items: Property[]; total: number } {
@@ -60,5 +62,16 @@ export function useWasi() {
     return await $fetch<WasiZone[]>(`/api/wasi/zones/${cityId}`)
   }
 
-  return { searchProperties, searchAllProperties, fetchZones }
+  async function getProperty(id: number) {
+    return await $fetch<PropertyDetail>(`/api/wasi/property/${id}`)
+  }
+
+  async function updateProperty(id: number, data: PropertyUpdate) {
+    return await $fetch<{ status: string }>(`/api/wasi/property/${id}`, {
+      method: 'POST',
+      body: data,
+    })
+  }
+
+  return { searchProperties, searchAllProperties, fetchZones, getProperty, updateProperty }
 }

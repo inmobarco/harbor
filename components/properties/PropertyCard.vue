@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Link, ExternalLink, FileSpreadsheet } from 'lucide-vue-next'
+import { Link, ExternalLink, FileSpreadsheet, Pencil } from 'lucide-vue-next'
 import type { Property } from '~/types/property'
 
 const props = defineProps<{
   property: Property
 }>()
+
+const emit = defineEmits<{ edit: [property: Property] }>()
 
 const { encrypt } = useEncryption()
 const config = useRuntimeConfig()
@@ -189,6 +191,13 @@ const labelColor = computed(() => {
         >
           <FileSpreadsheet class="w-4 h-4" />
           {{ addingToExcel ? 'Enviando...' : addedToExcel ? 'Agregado' : 'Agregar a excel' }}
+        </button>
+        <button
+          @click="emit('edit', property)"
+          class="flex items-center gap-1.5 text-sm font-semibold text-harbor-blue-dark border border-harbor-blue/30 rounded-lg px-3 py-1.5 transition-colors hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue"
+        >
+          <Pencil class="w-4 h-4" />
+          Modificar
         </button>
       </template>
       <!-- TODO: Activar propiedad -->

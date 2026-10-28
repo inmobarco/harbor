@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Property } from '~/types/property'
+
 definePageMeta({
   layout: 'default',
 })
@@ -12,6 +14,14 @@ watch(isInactive, (inactive) => {
   store.setBaseFilters(inactive ? { id_status_on_page: 2 } : {})
   store.clearFilters()
 }, { immediate: true })
+
+const editing = ref<Property | null>(null)
+const editOpen = ref(false)
+
+function openEdit(property: Property) {
+  editing.value = property
+  editOpen.value = true
+}
 </script>
 
 <template>
@@ -43,6 +53,7 @@ watch(isInactive, (inactive) => {
           v-for="property in store.filteredProperties"
           :key="property.id_property"
           :property="property"
+          @edit="openEdit"
         />
       </div>
 
@@ -77,5 +88,12 @@ watch(isInactive, (inactive) => {
         </button>
       </div>
     </template>
+
+    <PropertiesEditPropertyModal
+      v-if="!isInactive"
+      v-model:open="editOpen"
+      :property="editing"
+      @saved="store.fetchProperties(store.page)"
+    />
   </div>
 </template>

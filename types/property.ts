@@ -20,6 +20,40 @@ export interface Property {
   label: string | null
 }
 
+/** Respuesta de `property/get`: trae los campos completos del inmueble. */
+export interface PropertyDetail extends Property {
+  built_area: string | number | null
+  private_area: string | number | null
+  stratum: string | number | null
+}
+
+/** Campos modificables desde Harbor. Wasi recibe los booleanos como 'true' / 'false'. */
+export interface PropertyUpdate {
+  for_sale: 'true' | 'false'
+  for_rent: 'true' | 'false'
+  area: number
+  built_area: number
+  private_area: number
+  sale_price?: number
+  rent_price?: number
+  bedrooms: number
+  bathrooms: number
+  garages: number
+  stratum?: number
+  tv_share: 'true' | 'false'
+}
+
+export const STRATUM_OPTIONS = [
+  { value: 1, label: 'Estrato 1' },
+  { value: 2, label: 'Estrato 2' },
+  { value: 3, label: 'Estrato 3' },
+  { value: 4, label: 'Estrato 4' },
+  { value: 5, label: 'Estrato 5' },
+  { value: 6, label: 'Estrato 6' },
+  { value: 7, label: 'Rural' },
+  { value: 8, label: 'Comercial' },
+] as const
+
 export interface PropertyFilters {
   match?: string
   id_property?: number
