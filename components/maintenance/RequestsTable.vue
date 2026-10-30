@@ -4,7 +4,7 @@ import { AlertTriangle, Layers } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import { Checkbox } from '~/components/ui/checkbox'
 import {
-  ageHours, compareByUpdatedDesc, formatAge, formatDate, locationLabel, slaState,
+  ageHours, compareDefault, formatAge, formatDate, formatRemaining, locationLabel, remainingHours, slaState,
 } from '~/lib/maintenanceView'
 import type { MaintenanceRequest } from '~/types/maintenance'
 
@@ -35,7 +35,7 @@ function siblingsOpen(r: MaintenanceRequest): number {
   return r.submissionId ? Math.max(0, (openSubmissionCounts.value.get(r.submissionId) ?? 1) - 1) : 0
 }
 
-const sortedOpen = computed(() => [...props.openRequests].sort(compareByUpdatedDesc))
+const sortedOpen = computed(() => [...props.openRequests].sort(compareDefault))
 const showClosed = computed(() => includeClosed.value && !props.quickActive)
 
 const AGE_CLASSES = {
@@ -78,7 +78,7 @@ function onRowKey(e: KeyboardEvent, id: number) {
             <th class="px-4 py-2.5">Categoria</th>
             <th class="px-4 py-2.5">Inmueble</th>
             <th class="px-4 py-2.5">Responsable</th>
-            <th class="px-4 py-2.5">Antiguedad</th>
+            <th class="px-4 py-2.5">Antiguedad · plazo</th>
           </tr>
         </thead>
 
@@ -148,7 +148,7 @@ function onRowKey(e: KeyboardEvent, id: number) {
                   v-if="group.key === 'open'"
                   :class="AGE_CLASSES[slaState(r, now) ?? 'ok']"
                 >
-                  {{ formatAge(ageHours(r, now)) }}<template v-if="slaState(r, now) === 'late'"> · vencida</template>
+                  {{ formatAge(ageHours(r, now)) }}<template v-if="remainingHours(r, now) !== null"> · {{ formatRemaining(remainingHours(r, now)!) }}</template>
                 </span>
                 <span v-else class="text-harbor-black/40">—</span>
               </td>

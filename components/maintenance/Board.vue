@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { compareForBoard } from '~/lib/maintenanceView'
+import { compareDefault } from '~/lib/maintenanceView'
 import { BOARD_COLUMNS } from '~/types/maintenance'
 import type { MaintenanceRequest, MaintenanceStatus } from '~/types/maintenance'
 
@@ -65,7 +65,7 @@ const columns = computed(() =>
   BOARD_COLUMNS.map(col => {
     const items = props.requests
       .filter(r => col.statuses.includes(r.status as MaintenanceStatus))
-      .sort(compareForBoard)
+      .sort(compareDefault)
     return {
       ...col,
       items,

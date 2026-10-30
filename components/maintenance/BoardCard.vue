@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { AlertTriangle, Clock, Flame, Layers, Paperclip } from 'lucide-vue-next'
-import { ageHours, formatAge, locationLabel, slaHours, slaState } from '~/lib/maintenanceView'
+import {
+  ageHours, formatAge, formatRemaining, locationLabel, remainingHours, slaHours, slaState,
+} from '~/lib/maintenanceView'
 import type { MaintenanceRequest } from '~/types/maintenance'
 
 const props = defineProps<{
@@ -32,6 +34,11 @@ const siblingsOpen = computed(() => {
 
 const sla = computed(() => slaState(props.request, props.now))
 const age = computed(() => formatAge(ageHours(props.request, props.now)))
+/** El tablero se ordena por vencimiento: mostrarlo hace legible ese orden. */
+const remaining = computed(() => {
+  const h = remainingHours(props.request, props.now)
+  return h === null ? null : formatRemaining(h)
+})
 const location = computed(() => locationLabel(props.request))
 
 const AGE_CLASSES = {
@@ -104,7 +111,7 @@ const AGE_CLASSES = {
         :title="slaHours(request) ? `Tiempo de respuesta esperado: ${slaHours(request)} h` : undefined"
       >
         <Clock class="h-3.5 w-3.5" />
-        {{ age }}<template v-if="sla === 'late'"> · vencida</template>
+        {{ age }}<template v-if="remaining"> · {{ remaining }}</template>
       </span>
       <MaintenanceAssigneeAvatar :user-id="request.assignedUserId" :name="request.assignedUserName" />
     </div>

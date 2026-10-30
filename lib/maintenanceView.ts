@@ -106,15 +106,49 @@ export function matchesFilters(r: MaintenanceRequest, f: MaintenanceFilters, now
   return true
 }
 
-/** Tablero: lo mas urgente arriba y, a igual prioridad, lo mas antiguo primero. */
-export function compareForBoard(a: MaintenanceRequest, b: MaintenanceRequest): number {
-  const rank = (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9)
-  if (rank) return rank
-  return Date.parse(a.submittedAt ?? a.createdAt) - Date.parse(b.submittedAt ?? b.createdAt)
+function receivedAt(r: MaintenanceRequest): number {
+  const t = Date.parse(r.submittedAt ?? r.createdAt)
+  return Number.isNaN(t) ? 0 : t
 }
 
-export function compareByUpdatedDesc(a: MaintenanceRequest, b: MaintenanceRequest): number {
-  return Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+/**
+ * Momento en que vence el plazo (recepcion + plazo de la prioridad). null si
+ * el plazo no aplica: resuelta, cerrada, cancelada o prioridad desconocida.
+ */
+export function dueAt(r: MaintenanceRequest): number | null {
+  const limit = slaHours(r)
+  if (limit === null || !SLA_STATUSES.includes(r.status as MaintenanceStatus)) return null
+  return receivedAt(r) + limit * HOUR_MS
+}
+
+/** Horas que faltan para el vencimiento; negativo si ya vencio. null si no aplica. */
+export function remainingHours(r: MaintenanceRequest, now: number): number | null {
+  const due = dueAt(r)
+  return due === null ? null : (due - now) / HOUR_MS
+}
+
+/** "quedan 2 d" o "vencida hace 5 h". */
+export function formatRemaining(hours: number): string {
+  return hours >= 0 ? `quedan ${formatAge(hours)}` : `vencida hace ${formatAge(-hours)}`
+}
+
+/**
+ * Orden por defecto del tablero y la tabla: primero lo que vence primero.
+ * Combina prioridad y antiguedad en un solo criterio: una alta a la que le
+ * quedan 3 dias va antes que una urgente recien llegada con mas margen. Las
+ * vencidas quedan arriba (la mas vencida primero). Las que no tienen plazo
+ * van despues, por antiguedad. Empates: la mas urgente, luego la que llego antes.
+ * Compara fechas de vencimiento, no tiempo restante: no depende de "ahora".
+ */
+export function compareDefault(a: MaintenanceRequest, b: MaintenanceRequest): number {
+  const dueA = dueAt(a)
+  const dueB = dueAt(b)
+  if (dueA !== null && dueB !== null && dueA !== dueB) return dueA - dueB
+  if (dueA === null && dueB !== null) return 1
+  if (dueA !== null && dueB === null) return -1
+  const rank = (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9)
+  if (rank) return rank
+  return receivedAt(a) - receivedAt(b)
 }
 
 /** "Apto 1204 · Reserva de la Loma". Si apt_num ya trae "Casa 14" no se antepone "Apto". */
