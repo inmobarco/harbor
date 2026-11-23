@@ -1,5 +1,4 @@
 <script setup lang="ts">
-//inicio
 definePageMeta({
   layout: 'default',
 })
@@ -9,9 +8,7 @@ definePageMeta({
   <div class="space-y-6">
     <h1 class="text-2xl font-bold text-harbor-black">Dashboard</h1>
 
-    <!-- Resumen de clientes del CRM por asesor -->
-    <DashboardAdvisorClientsSummary />
-
-    <!-- TODO: KPI cards, citas próximas, propiedades recientes -->
+    <!-- Captaciones de la semana en curso y la pasada, por asesor -->
+    <DashboardAcquisitionsSummary />
   </div>
 </template>
