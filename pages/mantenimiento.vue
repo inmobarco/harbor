@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useNow } from '@vueuse/core'
-import { ArrowRight, Columns3, List, RefreshCw } from 'lucide-vue-next'
+import { ArrowRight, Columns3, FileSpreadsheet, List, RefreshCw } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import { matchesAssignees, matchesFilters } from '~/lib/maintenanceView'
 import type { MaintenanceStatus, QuickFilterKey } from '~/types/maintenance'
@@ -13,6 +13,10 @@ const {
   closedRequests, closedLoading, closedError, closedHasMore,
   filters, setFilters, fetchOpen, fetchClosed, fetchStaff, myUserId, applyDefaultView, findRequest,
 } = useMaintenance()
+
+const {
+  loading: reportLoading, error: reportError, downloadReport,
+} = useMaintenanceReport()
 
 // La antiguedad y los plazos se recalculan cada minuto sin volver a pedir datos
 const nowDate = useNow({ interval: 60_000 })
@@ -144,6 +148,17 @@ async function refresh() {
             {{ v.label }}
           </button>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="reportLoading"
+          :class="reportError ? 'border-harbor-warning/60 text-amber-700' : ''"
+          title="Excel para gerencia con todas las solicitudes de la empresa: resumen, activas y cerradas o canceladas de la semana anterior (lunes a domingo)"
+          @click="downloadReport"
+        >
+          <FileSpreadsheet class="h-4 w-4" />
+          {{ reportLoading ? 'Generando...' : reportError ? 'Error, reintentar' : 'Descargar informe' }}
+        </Button>
         <Button variant="outline" size="sm" :disabled="refreshing || openLoading" @click="refresh">
           <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': refreshing || openLoading }" />
           Actualizar
