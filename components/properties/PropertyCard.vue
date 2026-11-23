@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, ExternalLink, FileSpreadsheet, Pencil } from 'lucide-vue-next'
+import { Link, ExternalLink, Pencil } from 'lucide-vue-next'
 import type { Property } from '~/types/property'
 
 const props = defineProps<{
@@ -23,8 +23,6 @@ const propertyUrl = computed(() => {
 })
 
 const copied = ref(false)
-const addedToExcel = ref(false)
-const addingToExcel = ref(false)
 
 async function copyLink() {
   if (!propertyUrl.value) return
@@ -36,29 +34,6 @@ async function copyLink() {
 function openCard() {
   if (!propertyUrl.value) return
   window.open(propertyUrl.value, '_blank')
-}
-
-async function addToExcel() {
-  if (addingToExcel.value) return
-  addingToExcel.value = true
-  try {
-    const encryptedId = encrypt(props.property.id_property)
-    await $fetch(config.public.n8nWebhookAddRow as string, {
-      method: 'POST',
-      body: {
-        propertyId: props.property.id_property,
-        encryptedId: encryptedId || props.property.id_property,
-        propertyName: displayRef.value,
-        timestamp: new Date().toISOString(),
-      },
-    })
-    addedToExcel.value = true
-    setTimeout(() => { addedToExcel.value = false }, 2000)
-  } catch (e) {
-    console.error('Error al agregar a Excel:', e)
-  } finally {
-    addingToExcel.value = false
-  }
 }
 
 const prices = computed(() => {
@@ -180,17 +155,6 @@ const labelColor = computed(() => {
         >
           <ExternalLink class="w-4 h-4" />
           Abrir ficha
-        </button>
-        <button
-          @click="addToExcel"
-          :disabled="addingToExcel"
-          class="flex items-center gap-1.5 text-sm font-semibold rounded-lg px-3 py-1.5 transition-colors border disabled:opacity-40 disabled:cursor-not-allowed"
-          :class="addedToExcel
-            ? 'bg-harbor-success text-white border-harbor-success'
-            : 'text-harbor-blue-dark border-harbor-blue/30 hover:bg-harbor-blue-dark hover:text-white hover:border-harbor-blue'"
-        >
-          <FileSpreadsheet class="w-4 h-4" />
-          {{ addingToExcel ? 'Enviando...' : addedToExcel ? 'Agregado' : 'Agregar a excel' }}
         </button>
         <button
           @click="emit('edit', property)"

@@ -175,7 +175,6 @@ NUXT_PUBLIC_API_TOKEN=
 
 # ─── n8n Webhooks ─────────────────────────────────────
 NUXT_PUBLIC_N8N_WEBHOOK_CREATE_APPOINTMENT=
-NUXT_PUBLIC_N8N_WEBHOOK_ADD_ROW=
 
 # ─── Cifrado de IDs de propiedades ────────────────────
 NUXT_PUBLIC_ENCRYPTION_KEY=
@@ -287,9 +286,8 @@ harbor/
 
 ### n8n Webhooks
 
-- **Variables:** `NUXT_PUBLIC_N8N_WEBHOOK_CREATE_APPOINTMENT`, `NUXT_PUBLIC_N8N_WEBHOOK_ADD_ROW`
+- **Variable:** `NUXT_PUBLIC_N8N_WEBHOOK_CREATE_APPOINTMENT`
 - **Flujo crear cita:** formulario → `POST` al webhook → n8n registra en la base de datos y notifica
-- **Flujo agregar fila:** desde `PropertyCard` → `POST` al webhook → n8n agrega a hoja de Excel
 
 ---
 
