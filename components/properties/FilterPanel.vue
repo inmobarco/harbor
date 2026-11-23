@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Search, X } from 'lucide-vue-next'
+import { useDebounceFn } from '@vueuse/core'
 import type { PropertyFilters, WasiZone } from '~/types/property'
 
 const emit = defineEmits<{
   search: [filters: PropertyFilters, referenceSearch: string]
+  /** La referencia filtra en cliente: se emite mientras se escribe */
+  reference: [referenceSearch: string]
   clear: []
 }>()
 
@@ -30,6 +33,9 @@ const zones = ref<WasiZone[]>([])
 const loadingZones = ref(false)
 
 const { fetchZones } = useWasi()
+
+const emitReference = useDebounceFn((q: string) => emit('reference', q), 200)
+watch(match, q => emitReference(q.trim()))
 
 watch(id_city, async (cityId) => {
   id_zone.value = undefined
@@ -84,7 +90,7 @@ const labelClass = 'block text-xs font-semibold text-harbor-black/50 uppercase t
         <input
           v-model="match"
           type="text"
-          placeholder="Buscar por referencia..."
+          placeholder="Buscar por referencia o matrícula..."
           :class="inputClass"
           @keyup.enter="handleSearch"
         />
