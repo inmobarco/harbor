@@ -4,6 +4,7 @@ import { MAINTENANCE_VIEW_ROLES } from '~/types/maintenance'
 /** Rutas que exigen un rol especifico ademas de la sesion. */
 const ROLE_RESTRICTED: Record<string, readonly string[]> = {
   '/rutero': ROUTE_MANAGE_ROLES,
+  '/rutero/gestionar': ROUTE_MANAGE_ROLES,
   '/mantenimiento': MAINTENANCE_VIEW_ROLES,
 }
 

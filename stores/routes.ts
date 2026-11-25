@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useAgendaStore } from '~/stores/agenda'
 import {
-  flattenAdvisorRoutes,
+  flattenAdvisorWeek,
+  normalizeAdvisorWeek,
   normalizeComplex,
   normalizeRouteDetail,
   normalizeRouteSummary,
@@ -15,6 +16,7 @@ import type {
   RouteAssignment,
   RouteDetail,
   RouteSummary,
+  ScheduleDay,
   UpdateRoutePayload,
 } from '~/types/route'
 
@@ -40,6 +42,12 @@ export const useRoutesStore = defineStore('routes', () => {
   const assignments = ref<RouteAssignment[]>([])
   const assignmentsLoading = ref(false)
   const assignmentsError = ref<string | null>(null)
+
+  /** Agenda de la semana actual por asesor (con check-ins), clave = advisorId. */
+  const weeks = ref<Record<string, ScheduleDay[]>>({})
+  /** Asesores cuya agenda fallo en la ultima carga. */
+  const failedAdvisorIds = ref<string[]>([])
+  const weekLoadedAt = ref<Date | null>(null)
 
   // ─── Computed ─────────────────────────────────────────────────────────────
   const selectedRoute = computed<RouteDetail | null>(() => {
@@ -148,8 +156,9 @@ export const useRoutesStore = defineStore('routes', () => {
 
   /**
    * No hay endpoint que liste todas las asignaciones, asi que se reconstruyen
-   * consultando la agenda de cada asesor. allSettled: un asesor que falle no
-   * debe dejar la vista sin las asignaciones de los demas.
+   * consultando la agenda de cada asesor. La misma respuesta alimenta el
+   * tablero semanal (weeks) y la gestion (assignments aplanadas).
+   * allSettled: un asesor que falle no debe dejar la vista sin los demas.
    *
    * Ojo: _get_advisor_routes hace INNER JOIN contra conjuntos activos, asi que
    * una ruta sin conjuntos activos no aparece aqui aunque tenga asignaciones
@@ -168,25 +177,34 @@ export const useRoutesStore = defineStore('routes', () => {
     assignmentsLoading.value = true
     assignmentsError.value = null
     try {
+      const advisors = [...agendaStore.advisors]
       const results = await Promise.allSettled(
-        agendaStore.advisors.map(async advisor => {
+        advisors.map(async advisor => {
           const data = await apiFetch<any>(
             `${ctx.base}/staff/scheduling/advisors/${advisor.id}/routes`
           )
-          return flattenAdvisorRoutes(data, advisor.id)
+          return { advisorId: advisor.id, days: normalizeAdvisorWeek(data) }
         })
       )
 
       const collected: RouteAssignment[] = []
-      let failed = 0
-      for (const result of results) {
-        if (result.status === 'fulfilled') collected.push(...result.value)
-        else failed++
-      }
+      const nextWeeks: Record<string, ScheduleDay[]> = {}
+      const failed: string[] = []
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          nextWeeks[result.value.advisorId] = result.value.days
+          collected.push(...flattenAdvisorWeek(result.value.days, result.value.advisorId))
+        } else {
+          failed.push(advisors[index].id)
+        }
+      })
 
       assignments.value = collected
-      assignmentsError.value = failed
-        ? `No se pudieron cargar las asignaciones de ${failed} asesor(es)`
+      weeks.value = nextWeeks
+      failedAdvisorIds.value = failed
+      weekLoadedAt.value = new Date()
+      assignmentsError.value = failed.length
+        ? `No se pudieron cargar las asignaciones de ${failed.length} asesor(es)`
         : null
     } catch (err: any) {
       console.error('Error cargando asignaciones:', err)
@@ -308,6 +326,9 @@ export const useRoutesStore = defineStore('routes', () => {
     assignments,
     assignmentsLoading,
     assignmentsError,
+    weeks,
+    failedAdvisorIds,
+    weekLoadedAt,
     // Computed
     selectedRoute,
     assignmentsBySelectedRoute,

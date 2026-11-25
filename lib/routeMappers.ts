@@ -1,6 +1,9 @@
 import type {
   ResidentialComplex,
   RouteAssignment,
+  ScheduleDay,
+  ScheduledComplex,
+  ScheduledRoute,
   RouteComplexRef,
   RouteDetail,
   RouteSummary,
@@ -46,27 +49,64 @@ export function normalizeRouteDetail(raw: any): RouteDetail {
   }
 }
 
-/**
- * _get_advisor_routes agrupa por dia: [{ day_of_week, routes: [...] }].
- * Aqui se aplana a una fila por asignacion, que es como la vista las muestra.
- */
-export function flattenAdvisorRoutes(payload: any, advisorId: string): RouteAssignment[] {
-  const days = Array.isArray(payload) ? payload : []
-  const out: RouteAssignment[] = []
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
 
+function normalizeScheduledComplex(raw: any): ScheduledComplex {
+  return {
+    complexId: Number(raw.complex_id),
+    name: raw.name ?? `Conjunto ${raw.complex_id}`,
+    address: raw.address ?? null,
+    latitude: toNumberOrNull(raw.latitude),
+    longitude: toNumberOrNull(raw.longitude),
+    visitOrder: toNumberOrNull(raw.visit_order),
+    checkInId: toNumberOrNull(raw.check_in_id),
+    visitedAt: raw.visited_at ?? null,
+  }
+}
+
+function normalizeScheduledRoute(raw: any): ScheduledRoute {
+  return {
+    assignmentId: Number(raw.assignment_id),
+    routeId: Number(raw.route_id),
+    routeName: raw.route_name,
+    notes: raw.notes ?? null,
+    priority: Number(raw.priority ?? 0),
+    complexes: (raw.complexes ?? []).map(normalizeScheduledComplex),
+  }
+}
+
+/**
+ * Agenda de la semana actual de un asesor: [{ day_of_week, date, routes }].
+ * El backend ya ordena dias, rutas (priority) y conjuntos (visit_order).
+ */
+export function normalizeAdvisorWeek(payload: any): ScheduleDay[] {
+  const days = Array.isArray(payload) ? payload : []
+  return days.map(day => ({
+    dayOfWeek: Number(day.day_of_week),
+    date: String(day.date ?? ''),
+    routes: (day?.routes ?? []).map(normalizeScheduledRoute),
+  }))
+}
+
+/** Aplana la agenda a una fila por asignacion, que es como la gestion las muestra. */
+export function flattenAdvisorWeek(days: ScheduleDay[], advisorId: string): RouteAssignment[] {
+  const out: RouteAssignment[] = []
   for (const day of days) {
-    for (const route of day?.routes ?? []) {
+    for (const route of day.routes) {
       out.push({
-        id: Number(route.assignment_id),
-        routeId: Number(route.route_id),
-        routeName: route.route_name,
+        id: route.assignmentId,
+        routeId: route.routeId,
+        routeName: route.routeName,
         advisorId,
-        dayOfWeek: Number(day.day_of_week),
-        priority: Number(route.priority ?? 0),
+        dayOfWeek: day.dayOfWeek,
+        priority: route.priority,
       })
     }
   }
-
   return out
 }
 

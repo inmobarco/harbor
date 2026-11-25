@@ -39,7 +39,11 @@ export function useRoutes() {
     assignments: computed(() => store.assignments),
     assignmentsLoading: computed(() => store.assignmentsLoading),
     assignmentsError: computed(() => store.assignmentsError),
+    weeks: computed(() => store.weeks),
+    failedAdvisorIds: computed(() => store.failedAdvisorIds),
+    weekLoadedAt: computed(() => store.weekLoadedAt),
     advisors: computed(() => agendaStore.advisors),
+    advisorsLoading: computed(() => agendaStore.advisorsLoading),
     // Derived
     canManageRoutes,
     selectedRouteAssignments: computed(() => store.assignmentsBySelectedRoute),

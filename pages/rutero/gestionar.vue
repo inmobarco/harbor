@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RefreshCw, Route as RouteIcon } from 'lucide-vue-next'
+import { ArrowLeft, RefreshCw, Route as RouteIcon } from 'lucide-vue-next'
 import { Button } from '~/components/ui/button'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -101,7 +101,14 @@ const loadingAnything = computed(() => routesLoading.value || assignmentsLoading
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-harbor-black">Rutero</h1>
+        <NuxtLink
+          to="/rutero"
+          class="inline-flex items-center gap-1 text-xs font-semibold text-harbor-black/50 hover:text-harbor-blue-dark"
+        >
+          <ArrowLeft class="h-3.5 w-3.5" />
+          Rutero
+        </NuxtLink>
+        <h1 class="text-2xl font-bold text-harbor-black">Gestionar rutas</h1>
         <p class="text-sm text-harbor-black/50 mt-0.5">
           Plantillas de recorrido y su asignacion semanal por asesor.
         </p>

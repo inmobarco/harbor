@@ -86,3 +86,42 @@ export interface CreateAssignmentPayload {
   dayOfWeek: number
   priority: number
 }
+
+/* ─── Agenda semanal (GET /staff/scheduling/advisors/{id}/routes) ──────────── */
+
+/** Estado de la visita a un conjunto en su dia asignado. */
+export type VisitStatus = 'visited' | 'pending' | 'missed'
+
+/** Conjunto de una ruta asignada, con su check-in de la semana actual. */
+export interface ScheduledComplex {
+  complexId: number
+  name: string
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+  visitOrder: number | null
+  checkInId: number | null
+  /** ISO 8601 en UTC; se muestra en hora Colombia. */
+  visitedAt: string | null
+}
+
+export interface ScheduledRoute {
+  assignmentId: number
+  routeId: number
+  routeName: string
+  notes: string | null
+  priority: number
+  complexes: ScheduledComplex[]
+}
+
+export interface ScheduleDay {
+  dayOfWeek: number
+  /** YYYY-MM-DD del dia dentro de la semana actual. */
+  date: string
+  routes: ScheduledRoute[]
+}
+
+export interface AdvisorWeek {
+  advisorId: string
+  days: ScheduleDay[]
+}

@@ -23,6 +23,7 @@ const allNavItems: NavItem[] = [
   { label: 'Agenda', icon: 'Calendar', to: '/agenda' },
   { label: 'Mapa', icon: 'Map', to: '/mapa' },
   { label: 'Rutero', icon: 'Route', to: '/rutero', roles: ROUTE_MANAGE_ROLES },
+  { label: 'Gestionar rutas', icon: null, to: '/rutero/gestionar', sub: true, roles: ROUTE_MANAGE_ROLES },
   { label: 'Mantenimiento', icon: 'Wrench', to: '/mantenimiento', roles: MAINTENANCE_VIEW_ROLES },
   { label: 'Asesores', icon: 'Users', to: '/asesores' },
 ]
